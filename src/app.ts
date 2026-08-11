@@ -1,5 +1,7 @@
 import express, { type Express } from "express";
+import swaggerUi from "swagger-ui-express";
 
+import { buildOpenApiDocument } from "./docs/swagger.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { errorHandler } from "./shared/middlewares/error-handler.js";
 import { notFoundHandler } from "./shared/middlewares/not-found.js";
@@ -21,6 +23,12 @@ export function createApp(): Express {
   app.use(express.json({ limit: "100kb" }));
 
   app.use(createHealthRouter());
+
+  const openApiDocument = buildOpenApiDocument();
+  app.get("/docs.json", (_request, response) => {
+    response.json(openApiDocument);
+  });
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
   // Rotas de domínio entram aqui conforme os épicos avançam
 
