@@ -39,19 +39,38 @@ já fornece tudo — nenhuma dependência nova, conforme o princípio 6 da
 constituição.
 
 ```
-payload   = { ticketId, eventId, code }
-signature = HMAC-SHA256(JSON.stringify(payload), TICKET_SECRET)
-qrContent = base64url(payload) + "." + signature
+payload          = { ticketId, eventId, code }
+encodedPayload   = base64url(JSON.stringify(payload))
+signature        = base64url(HMAC-SHA256(encodedPayload, TICKET_SECRET))
+qrContent        = encodedPayload + "." + signature
 ```
 
 `TICKET_SECRET` vive em variável de ambiente e nunca no código.
 
+A assinatura cobre **a string codificada**, não o JSON original. A seção 7 do
+`CLAUDE.md` esboça `HMAC(JSON.stringify(payload))`; assinar o JSON exigiria que a
+portaria reconstruísse byte a byte a mesma serialização para conferir, e
+`JSON.stringify` não garante ordem estável de chaves entre implementações — uma
+reordenação ou um campo novo invalidaria todos os ingressos já emitidos.
+Assinando o que de fato trafega, a verificação não depende de canonicalização
+nenhuma. A propriedade criptográfica é idêntica; o que muda é a fragilidade.
+
 A validação na portaria tem três etapas, nesta ordem:
 
-1. **Assinatura.** Recalcula o HMAC e compara com o recebido usando
-   `crypto.timingSafeEqual`, não `===` — comparação de string sai cedo no
-   primeiro byte diferente e vaza, pelo tempo de resposta, quanto do prefixo
-   está correto. Assinatura inválida retorna `INVALID` sem tocar no banco.
+1. **Assinatura.** Separa `qrContent` no ponto, recalcula o HMAC sobre
+   `encodedPayload` e compara com o recebido usando `crypto.timingSafeEqual`, não
+   `===` — comparação de string sai cedo no primeiro byte diferente e vaza, pelo
+   tempo de resposta, quanto do prefixo está correto.
+
+   `timingSafeEqual` **lança `RangeError` quando os buffers têm comprimentos
+   diferentes** (`ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH`). Como o comprimento da
+   assinatura vem do cliente, é obrigatório comparar os tamanhos antes e tratar
+   divergência como assinatura inválida. Sem essa guarda, uma assinatura truncada
+   vira erro 500 em vez de `INVALID` — resposta errada, e ainda um jeito trivial
+   de derrubar a portaria. Um QR malformado, sem ponto separador, cai no mesmo
+   tratamento.
+
+   Assinatura inválida retorna `INVALID` sem tocar no banco.
 2. **Estado.** Com a assinatura válida, consulta o `Ticket` pelo `code` e
    confere se o `eventId` corresponde ao evento daquela portaria.
 3. **Consumo atômico.** `UPDATE ticket SET status='USED' WHERE code = $1 AND
@@ -72,15 +91,20 @@ A validação na portaria tem três etapas, nesta ordem:
   usado — a verificação offline diz apenas "isto foi emitido por nós". O estado
   continua exigindo banco, o que limita o benefício em conectividade instável ao
   caso do QR falso.
-* Ruim, porque `JSON.stringify` não garante ordem estável de chaves entre
-  implementações; o payload precisa ser serializado com ordem fixa, sob risco de
-  assinaturas que não conferem.
+* Ruim, porque a validação precisa tratar entrada malformada antes de qualquer
+  operação criptográfica — comprimento de assinatura divergente, ausência do
+  ponto separador, base64url inválido —, e cada um desses caminhos é uma chance
+  de devolver 500 no lugar de `INVALID`.
 
 ### Confirmação
 
 Testes unitários de `qrcode.service`: assinatura válida verifica; payload
-adulterado em qualquer campo falha; assinatura truncada ou de outro segredo
-falha; a comparação usa `timingSafeEqual`.
+adulterado em qualquer campo falha; assinatura de outro segredo falha; a
+comparação usa `timingSafeEqual`.
+
+Um teste específico cobre entrada malformada — assinatura truncada, QR sem o
+ponto separador, base64url corrompido — e exige `INVALID`, nunca exceção
+propagada. É o teste que impede a regressão do `RangeError`.
 
 Teste de integração da portaria: validar o mesmo ingresso duas vezes retorna
 `VALID` e depois `ALREADY_USED`; ingresso de outro evento retorna `WRONG_EVENT`.
@@ -119,6 +143,10 @@ anterior ao `UPDATE`.
 
 * [Node.js — `crypto.createHmac`](https://nodejs.org/api/crypto.html#cryptocreatehmacalgorithm-key-options)
 * [Node.js — `crypto.timingSafeEqual`](https://nodejs.org/api/crypto.html#cryptotimingsafeequala-b):
-  exige buffers de mesmo comprimento, o que precisa ser tratado antes da
-  comparação.
-* Seção 7 do [`CLAUDE.md`](../../CLAUDE.md).
+  exige buffers de mesmo comprimento, sob pena de `RangeError`.
+* Seção 7 do [`CLAUDE.md`](../../CLAUDE.md). Esta decisão **diverge** do esboço
+  de lá em um ponto: o HMAC cobre `base64url(JSON.stringify(payload))` e não
+  `JSON.stringify(payload)`. A estrutura e a propriedade criptográfica são as
+  mesmas; a mudança só elimina a exigência de serialização canônica na
+  verificação. Se a divergência não for aceita, reverter aqui e acrescentar ao
+  `qrcode.service` uma serialização com ordem de chaves fixa, coberta por teste.

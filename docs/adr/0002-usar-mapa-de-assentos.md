@@ -31,22 +31,47 @@ nunca vender o mesmo lugar duas vezes — será garantido.
 
 Escolhida a opção "mapa de assentos", porque transforma o requisito numa
 constraint declarativa do banco em vez de aritmética sobre um contador: com um
-registro por lugar, "não vender duas vezes" vira um índice único, verificável
-lendo o schema.
+registro por lugar, "não vender duas vezes" vira um índice único sobre a
+reserva, verificável lendo o schema.
 
 ```prisma
 model Seat {
-  id      String     @id @default(uuid())
+  id      String @id @default(uuid())
   eventId String
-  label   String     // "B12"
-  status  SeatStatus // AVAILABLE | RESERVED | SOLD
-  event   Event      @relation(fields: [eventId], references: [id])
+  label   String // "B12"
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  reservations Reservation[]
 
   @@unique([eventId, label])
 }
 ```
 
-A garantia final contra dupla reserva está no [ADR 0003](0003-lock-redis-com-constraint-no-banco.md).
+O `@@unique([eventId, label])` acima só impede rótulos repetidos dentro de um
+evento. **A garantia contra dupla venda não está aqui**: ela é o índice único
+parcial sobre `Reservation`, no
+[ADR 0003](0003-lock-redis-com-constraint-no-banco.md). O `Seat` existe para dar
+identidade ao lugar; quem carrega o estado é a reserva.
+
+Por isso o `Seat` **não tem coluna `status`**, apesar de a seção 5 do
+`CLAUDE.md` sugerir uma — e ela abre espaço para ajustar os campos. Um `status`
+no assento seria uma segunda fonte de verdade ao lado do índice em
+`Reservation`, sem ninguém encarregado de mantê-las coerentes: bastaria uma
+reserva expirar para o mapa exibir `RESERVED` indefinidamente, ou exibir
+`AVAILABLE` com uma reserva ativa e o cliente descobrir o conflito só no `409`.
+A disponibilidade é **derivada**: um assento está livre quando não existe
+reserva ativa apontando para ele.
+
+```sql
+-- assentos disponíveis de um evento
+SELECT s.* FROM "Seat" s
+ WHERE s."eventId" = $1
+   AND NOT EXISTS (
+     SELECT 1 FROM "Reservation" r
+      WHERE r."seatId" = s.id
+        AND r.status IN ('PENDING','CONFIRMED')
+   );
+```
 
 ### Consequências
 
@@ -56,6 +81,10 @@ A garantia final contra dupla reserva está no [ADR 0003](0003-lock-redis-com-co
   sentido à validação na portaria.
 * Ruim, porque o seed precisa gerar um registro por assento, e criar um evento
   passa a implicar criar N linhas — o que exige atenção a capacidades grandes.
+* Ruim, porque derivar a disponibilidade custa um anti-join a cada consulta do
+  mapa, em vez da leitura direta de uma coluna. É o preço de ter uma fonte de
+  verdade só; se virar gargalo, a saída é índice em `Reservation(seatId, status)`,
+  não desnormalizar o estado de volta para o assento.
 * Ruim, porque descarta o caso de uso real de evento sem lugar marcado; suportá-lo
   depois exigirá um ADR novo que substitua este.
 
@@ -65,6 +94,10 @@ Um teste de integração dispara requisições concorrentes de reserva para o me
 `seatId` e verifica que exatamente uma é confirmada e as demais recebem conflito.
 O mesmo teste roda com o Redis indisponível: sem o lock, o resultado precisa
 continuar sendo uma única reserva confirmada.
+
+Na revisão de código, qualquer coluna de estado acrescentada a `Seat` é achado
+bloqueante enquanto não houver um ADR que substitua este: seria reintroduzir a
+segunda fonte de verdade que a decisão eliminou.
 
 ## Prós e contras das opções
 

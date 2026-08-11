@@ -47,10 +47,16 @@ não garantir integridade.
 mesmo assento tornam-se impossíveis por definição do schema:
 
 ```prisma
+generator client {
+  provider        = "prisma-client"
+  previewFeatures = ["partialIndexes"]
+}
+
 model Reservation {
-  id      String            @id @default(uuid())
-  seatId  String
-  status  ReservationStatus // PENDING | CONFIRMED | EXPIRED | CANCELED
+  id        String            @id @default(uuid())
+  seatId    String
+  status    ReservationStatus // PENDING | CONFIRMED | EXPIRED | CANCELED
+  expiresAt DateTime
 
   @@unique([seatId], where: raw("status IN ('PENDING','CONFIRMED')"))
 }
@@ -58,6 +64,23 @@ model Reservation {
 
 O serviço trata a violação de unicidade (`P2002` no Prisma) como conflito de
 negócio e responde `409`, em vez de deixá-la vazar como erro interno.
+
+**Camada 3 — expiração explícita.** O predicado do índice não pode considerar
+`expiresAt`: o Postgres exige que toda função usada em definição de índice seja
+`IMMUTABLE`, e `now()` não é. Uma reserva `PENDING` vencida continua, para o
+índice, tão ativa quanto qualquer outra — o assento ficaria travado para sempre
+por quem abandonou o pagamento. A transição para `EXPIRED` precisa portanto ser
+uma escrita de verdade, e acontece por dois caminhos complementares:
+
+* **Verificação preguiçosa**, no caminho crítico: já com o lock do assento
+  tomado, e dentro da mesma transação da nova reserva, o serviço marca como
+  `EXPIRED` as reservas `PENDING` daquele assento cujo `expiresAt` já passou.
+  Isto garante correção — o assento é liberado no exato momento em que alguém
+  tenta reservá-lo de novo.
+* **Job periódico**, como varredura de fundo: mantém o mapa de assentos honesto
+  para quem só está navegando, sem depender de uma tentativa de reserva. É
+  otimização de experiência, não de correção; se o job não rodar, o sistema
+  continua correto.
 
 ### Consequências
 
@@ -71,18 +94,23 @@ negócio e responde `409`, em vez de deixá-la vazar como erro interno.
 * Ruim, porque a lógica de reserva passa a ter dois caminhos de falha (lock não
   adquirido e violação de constraint) que precisam convergir para a mesma
   resposta ao cliente, sob risco de comportamento inconsistente.
-* Ruim, porque reserva `PENDING` expirada continua ocupando o índice até ser
-  marcada `EXPIRED`, exigindo expiração ativa ou verificação preguiçosa.
+* Ruim, porque a expiração não pode ser expressa no índice e vira código: a
+  correção passa a depender de o serviço lembrar de expirar antes de reservar.
+  É a parte frágil desta decisão, e por isso tem teste próprio.
 
 ### Confirmação
 
-Três testes, todos obrigatórios antes de fechar o Épico 4:
+Quatro testes, todos obrigatórios antes de fechar o Épico 4:
 
 1. N requisições concorrentes ao mesmo assento produzem exatamente uma reserva
    ativa.
 2. O mesmo cenário **com o Redis desligado** produz o mesmo resultado — este é o
    teste que prova que a garantia está no banco, e não no lock.
-3. Reserva `PENDING` expirada libera o assento para uma nova reserva.
+3. Reserva `PENDING` com `expiresAt` no passado não impede uma nova reserva do
+   mesmo assento: a verificação preguiçosa a marca `EXPIRED` e a nova reserva é
+   criada.
+4. Reserva `PENDING` ainda dentro do prazo **impede** uma nova reserva, com
+   resposta `409` — sem isto, o teste 3 passaria com uma expiração ampla demais.
 
 Na revisão de código, qualquer verificação de disponibilidade que dependa apenas
 de leitura prévia sem a constraint por trás é achado bloqueante.
@@ -121,6 +149,9 @@ de leitura prévia sem a constraint por trás é achado bloqueante.
 * [Prisma — Indexes: partial indexes](https://www.prisma.io/docs/orm/prisma-schema/data-model/indexes)
   e [release 7.4.0](https://github.com/prisma/prisma/releases/tag/7.4.0), que
   introduziu `partialIndexes` como preview feature.
+* [PostgreSQL — `CREATE INDEX`](https://www.postgresql.org/docs/current/sql-createindex.html):
+  toda função usada em definição de índice precisa ser `IMMUTABLE`, o que exclui
+  `now()` do predicado e obriga a expiração explícita descrita na camada 3.
 * Modelagem de assento: [ADR 0002](0002-usar-mapa-de-assentos.md).
 * Se `partialIndexes` se mostrar instável, a alternativa é declarar o índice em
   SQL cru dentro da migration — mesma garantia, sem depender de preview feature.
