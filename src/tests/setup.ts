@@ -8,3 +8,8 @@ import { existsSync } from "node:fs";
 if (existsSync(".env")) {
   process.loadEnvFile(".env");
 }
+
+// Log desligado por padrão: a saída dos testes deve mostrar falhas, não ruído.
+// O teste que precisa inspecionar o log constrói o seu próprio logger.
+process.env.LOG_LEVEL = "silent";
+process.env.NODE_ENV = "test";
