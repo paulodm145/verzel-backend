@@ -12,8 +12,8 @@ commits).
 
 | # | Spec | Épico | Branch | Status |
 | --- | --- | --- | --- | --- |
-| 0000 | [Spec-driven development](0000-spec-driven-development/spec.md) | — | `docs/0000-spec-driven-development` | em revisão |
-| 0001 | Fundação | 1 | `feat/0001-fundacao` | não iniciada |
+| 0000 | [Spec-driven development](0000-spec-driven-development/spec.md) | — | `docs/0000-spec-driven-development` | entregue |
+| 0001 | [Fundação](0001-fundacao/spec.md) | 1 | `feat/0001-fundacao` | especificada |
 | 0002 | Autenticação | 2 | `feat/0002-autenticacao` | não iniciada |
 | 0003 | Catálogo e eventos | 3 | `feat/0003-catalogo-eventos` | não iniciada |
 | 0004 | Reserva e pagamento | 4 | `feat/0004-reserva-pagamento` | não iniciada |
@@ -21,7 +21,7 @@ commits).
 | 0006 | Portaria | 6 | `feat/0006-portaria` | não iniciada |
 | 0007 | Qualidade e entrega | 7 | `chore/0007-qualidade-entrega` | não iniciada |
 
-Só a spec 0000 existe como documento hoje. As demais são escritas
+As specs de 0002 em diante ainda não existem como documento. São escritas
 **just-in-time**, no início da branch do épico correspondente — uma spec redigida
 seis branches antes da implementação envelhece contra decisões que ainda nem
 foram tomadas.
