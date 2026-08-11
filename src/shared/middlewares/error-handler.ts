@@ -15,14 +15,46 @@ interface ErrorBody {
   };
 }
 
-/** O `body-parser` sinaliza JSON malformado assim; não há classe própria. */
-function isMalformedJson(error: unknown): boolean {
-  return (
-    error instanceof SyntaxError &&
-    "body" in error &&
-    "status" in error &&
-    error.status === 400
-  );
+/**
+ * O `body-parser` não expõe classes de erro: sinaliza com objetos no estilo
+ * `http-errors`, que trazem `status` e um `type` descritivo. São falhas do
+ * cliente — corpo ilegível, grande demais, codificação não suportada — e tratá-las
+ * como inesperadas contabilizaria erro de cliente como falha do servidor.
+ */
+function asClientError(
+  error: unknown,
+): { status: number; code: string; message: string } | undefined {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+
+  const candidate = error as { status?: unknown; type?: unknown };
+  const status = typeof candidate.status === "number" ? candidate.status : 0;
+
+  if (status < 400 || status >= 500) {
+    return undefined;
+  }
+
+  switch (candidate.type) {
+    case "entity.parse.failed":
+      return {
+        status: 400,
+        code: "MALFORMED_JSON",
+        message: "O corpo da requisição não é um JSON válido",
+      };
+    case "entity.too.large":
+      return {
+        status: 413,
+        code: "PAYLOAD_TOO_LARGE",
+        message: "O corpo da requisição excede o tamanho máximo aceito",
+      };
+    default:
+      return {
+        status,
+        code: "BAD_REQUEST",
+        message: "Não foi possível interpretar a requisição",
+      };
+  }
 }
 
 function buildBody(
@@ -92,18 +124,17 @@ function handle(
     return;
   }
 
-  if (isMalformedJson(error)) {
-    logger.info({ requestId, path: request.path }, "corpo JSON malformado");
+  const clientError = asClientError(error);
+
+  if (clientError) {
+    logger.info(
+      { requestId, path: request.path, code: clientError.code },
+      "requisição malformada",
+    );
 
     response
-      .status(400)
-      .json(
-        buildBody(
-          "MALFORMED_JSON",
-          "O corpo da requisição não é um JSON válido",
-          requestId,
-        ),
-      );
+      .status(clientError.status)
+      .json(buildBody(clientError.code, clientError.message, requestId));
     return;
   }
 
