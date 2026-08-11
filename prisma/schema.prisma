@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+
+  // Índice parcial: a garantia contra dupla venda (ADR 0003)
+  previewFeatures = ["partialIndexes"]
+}
+
+// No Prisma 7 a URL sai do schema: as migrations a leem de prisma.config.ts e o
+// client a recebe pelo driver adapter (@prisma/adapter-pg)
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ORGANIZER
+  CUSTOMER
+  GATE
+}
+
+enum SourceType {
+  SHOW
+  MOVIE
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  EXPIRED
+  CANCELED
+}
+
+enum PaymentStatus {
+  APPROVED
+  REFUSED
+}
+
+enum TicketStatus {
+  VALID
+  USED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  organizedEvents Event[]       @relation("EventOrganizer")
+  reservations    Reservation[]
+  validatedTickets Ticket[]     @relation("TicketValidatedBy")
+}
+
+model Event {
+  id          String      @id @default(uuid())
+  organizerId String
+  sourceType  SourceType
+  externalId  String
+  title       String
+  description String?
+  imageUrl    String?
+  date        DateTime
+  venue       String
+  capacity    Int
+  price       Decimal     @db.Decimal(10, 2)
+  status      EventStatus @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now()) @updatedAt
+
+  organizer    User          @relation("EventOrganizer", fields: [organizerId], references: [id])
+  seats        Seat[]
+  reservations Reservation[]
+
+  @@unique([sourceType, externalId, organizerId])
+  @@index([status, date])
+}
+
+/// Sem coluna de estado: a disponibilidade é derivada da ausência de reserva
+/// ativa, para não haver duas fontes de verdade sobre o mesmo fato (ADR 0002).
+model Seat {
+  id      String @id @default(uuid())
+  eventId String
+  label   String
+
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@unique([eventId, label])
+}
+
+model Reservation {
+  id         String            @id @default(uuid())
+  eventId    String
+  customerId String
+  seatId     String
+  status     ReservationStatus @default(PENDING)
+  expiresAt  DateTime
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @default(now()) @updatedAt
+
+  event    Event    @relation(fields: [eventId], references: [id])
+  customer User     @relation(fields: [customerId], references: [id])
+  seat     Seat     @relation(fields: [seatId], references: [id])
+  payment  Payment?
+  ticket   Ticket?
+
+  /// A garantia final contra vender o mesmo lugar duas vezes (ADR 0003).
+  /// O lock no Redis é otimização; esta linha é o que torna o overselling
+  /// impossível, inclusive com o Redis fora do ar.
+  @@unique([seatId], where: raw("status IN ('PENDING','CONFIRMED')"))
+  /// Serve à varredura de expiração da camada 3 do ADR 0003
+  @@index([status, expiresAt])
+  @@index([customerId])
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  reservationId String        @unique
+  status        PaymentStatus
+  simulatedAt   DateTime      @default(now())
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+}
+
+model Ticket {
+  id               String       @id @default(uuid())
+  reservationId    String       @unique
+  code             String       @unique
+  qrSignature      String
+  status           TicketStatus @default(VALID)
+  usedAt           DateTime?
+  usedByGateUserId String?
+  createdAt        DateTime     @default(now())
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  usedByGate  User?       @relation("TicketValidatedBy", fields: [usedByGateUserId], references: [id])
+}

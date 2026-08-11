@@ -29,7 +29,7 @@ Verificadas no npm e na documentação oficial em 2026-08-11:
 | `typescript` | `~6.0.3` | A 7 quebra o `typescript-eslint` — ADR 0006 |
 | `express` | `^5.2.1` | Promessa rejeitada em handler `async` vai sozinha ao error handler; `req.body` é `undefined` sem parser; curinga vira `/*splat` |
 | `zod` | `^4.4.3` | `z.toJSONSchema()` nativo — ADR 0007 |
-| `prisma` / `@prisma/client` | `^7.9.1` | Generator `prisma-client` (o `-js` está obsoleto) exige `output`; `partialIndexes` continua preview |
+| `prisma` / `@prisma/client` | `^7.9.1` | Generator `prisma-client` (o `-js` está obsoleto) exige `output`; `partialIndexes` continua preview; **a URL sai do schema** — migrations a leem de `prisma.config.ts` e o client a recebe via `@prisma/adapter-pg` |
 | `redis` | `^6.2.1` | RESP3 por padrão e **timeout de comando de 5 s**, que antes não existia |
 | `eslint` | `^10.8.1` | Só flat config |
 | `vitest` | `^4.1.10` | ADR 0008 |
@@ -52,6 +52,7 @@ sistema siga correto sem Redis.
 | `package.json`, `tsconfig.json`, `eslint.config.ts` | criar | Toolchain |
 | `docker-compose.yml`, `.env.example` | criar | Postgres e Redis com volumes nomeados |
 | `prisma/schema.prisma` | criar | Modelo completo, incluindo o índice do ADR 0003 |
+| `prisma.config.ts` | criar | Conexão das migrations — no Prisma 7 ela sai do schema |
 | `src/shared/config/env.ts` | criar | Ambiente validado por Zod na partida |
 | `src/shared/lib/prisma.ts` | criar | Instância única do client |
 | `src/shared/lib/redis.ts` | criar | Conexão, desligamento limpo, estado para o health |

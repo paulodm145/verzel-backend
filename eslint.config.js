@@ -51,7 +51,9 @@ export default tseslint.config(
   },
 
   {
-    files: ["*.js", "*.config.js", "*.config.ts"],
+    // Arquivos fora do tsconfig (configuração e scripts) não têm serviço de
+    // tipos disponível; lintar sem as regras que dependem de tipo
+    files: ["**/*.js", "*.config.ts"],
     ...tseslint.configs.disableTypeChecked,
   },
 );
