@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 
+import { createHealthRouter } from "./modules/health/health.routes.js";
 import { errorHandler } from "./shared/middlewares/error-handler.js";
 import { notFoundHandler } from "./shared/middlewares/not-found.js";
 import { requestId } from "./shared/middlewares/request-id.js";
@@ -18,6 +19,8 @@ export function createApp(): Express {
   // Limite explícito: sem ele o padrão de 100kb vira uma surpresa silenciosa,
   // e um limite alto demais é superfície de abuso
   app.use(express.json({ limit: "100kb" }));
+
+  app.use(createHealthRouter());
 
   // Rotas de domínio entram aqui conforme os épicos avançam
 
