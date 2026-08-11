@@ -45,16 +45,10 @@ justificar.
 
 ## Progresso
 
-| Épico | Entrega | Status |
-| --- | --- | --- |
-| — | Arcabouço de spec-driven development | em revisão |
-| 1 | Fundação: TypeScript, Prisma, Redis, Swagger, erros | não iniciado |
-| 2 | Autenticação: cadastro, login, tokens, papéis | não iniciado |
-| 3 | Catálogo externo e CRUD de eventos | não iniciado |
-| 4 | Reserva com controle de concorrência e pagamento | não iniciado |
-| 5 | Emissão de ingressos com QR assinado | não iniciado |
-| 6 | Validação na portaria | não iniciado |
-| 7 | Qualidade e entrega | não iniciado |
+O estado de cada épico está no [roadmap de specs](docs/specs/README.md), e o
+detalhe tarefa a tarefa no backlog do [`CLAUDE.md`](CLAUDE.md). Não é repetido
+aqui de propósito: uma terceira cópia do mesmo status seria a primeira a
+divergir.
 
 ## Setup
 

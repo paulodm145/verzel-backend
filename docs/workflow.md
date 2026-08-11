@@ -77,11 +77,17 @@ Pela seção 16 do CLAUDE.md, os schemas Zod do módulo vêm antes do restante.
 
 ```bash
 git push -u origin feat/0002-autenticacao
-gh pr create --fill
+gh pr create --base main --title "feat(auth): implementar cadastro e login" \
+             --body-file .github/pull_request_template.md --draft
 ```
 
-O corpo segue o [template](../.github/pull_request_template.md), que obriga a
-linkar a spec. Abrir como draft enquanto o épico não estiver completo.
+E então preencher o corpo no GitHub. **Não usar `gh pr create --fill`**: essa
+flag monta o corpo a partir das mensagens de commit e ignora o
+[template](../.github/pull_request_template.md), produzindo um PR sem a seção
+"Spec relacionada" e sem o checklist. Alternativa equivalente: `gh pr create
+--web`, que abre o formulário já com o template carregado.
+
+O PR nasce como draft e vira ready quando o épico estiver completo.
 
 ### 6. Revisar
 
@@ -122,8 +128,9 @@ Depois do merge, marcar o checkbox do épico no backlog do CLAUDE.md.
 | Commit | `<tipo>(<escopo>): <imperativo>` | `feat(reservations): adicionar lock no Redis` |
 | PR | mesma forma do commit | `feat(auth): implementar cadastro e login` |
 
-A numeração de ADR e de spec é sequencial e independente: os dois começam em
-0001 e não se correspondem.
+A numeração de ADR e de spec é sequencial e independente, e as duas séries não
+se correspondem. As specs acompanham os épicos, e a 0000 é reservada ao
+arcabouço que precede o Épico 1. Os ADRs começam em 0001.
 
 ## Nota sobre ferramental
 

@@ -7,11 +7,15 @@ indent_style = space
 indent_size = 2
 insert_final_newline = true
 trim_trailing_whitespace = true
+
+[*.{ts,js,json}]
 max_line_length = 100
 
 [*.md]
-# Duas linhas em branco no fim e espaços à direita têm significado em markdown
+# Espaços à direita têm significado em markdown, e tabela não quebra em 100
+# colunas sem virar ilegível
 trim_trailing_whitespace = false
+max_line_length = off
 
 [*.{yml,yaml}]
 indent_size = 2
