@@ -80,5 +80,17 @@ export function createFakeEventsRepository(): FakeEventsRepository {
     countAvailableSeats(eventId) {
       return Promise.resolve(seatCounts.get(eventId) ?? 0);
     },
+
+    listSeats(eventId) {
+      const total = seatCounts.get(eventId) ?? 0;
+
+      return Promise.resolve(
+        Array.from({ length: total }, (_unused, index) => ({
+          id: `assento-${String(index + 1)}`,
+          label: `A${String(index + 1)}`,
+          available: true,
+        })),
+      );
+    },
   };
 }

@@ -266,6 +266,28 @@ describe("rotas públicas", () => {
     expect(response.status).toBe(404);
   });
 
+  it("entrega o mapa de assentos com os ids que a reserva exige", async () => {
+    const evento = await publicar();
+
+    const response = await request(app).get(`/events/${evento.id}/seats`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ total: 10, availableCount: 10 });
+    expect(response.body.items[0]).toMatchObject({
+      label: expect.any(String),
+      available: true,
+    });
+    expect(response.body.items[0].id).toBeTruthy();
+  });
+
+  it("não entrega o mapa de um rascunho", async () => {
+    const criado = await criarEvento();
+
+    const response = await request(app).get(`/events/${idOf(criado)}/seats`);
+
+    expect(response.status).toBe(404);
+  });
+
   it("responde 400 para id que não é uuid", async () => {
     const response = await request(app).get("/events/não-é-uuid");
 

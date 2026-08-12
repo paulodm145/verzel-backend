@@ -56,6 +56,18 @@ export const eventDetailSchema = eventSchema.extend({
   availableSeatsCount: z.number().int().nonnegative(),
 });
 
+export const seatSchema = z.object({
+  id: z.uuid(),
+  label: z.string(),
+  available: z.boolean(),
+});
+
+export const seatMapSchema = z.object({
+  items: z.array(seatSchema),
+  total: z.number().int().nonnegative(),
+  availableCount: z.number().int().nonnegative(),
+});
+
 export const eventListSchema = z.object({
   items: z.array(eventSchema),
   total: z.number().int().nonnegative(),
@@ -68,3 +80,4 @@ export type UpdateEventInput = z.infer<typeof updateEventSchema>;
 export type ListEventsInput = z.infer<typeof listEventsSchema>;
 export type EventOutput = z.infer<typeof eventSchema>;
 export type EventDetailOutput = z.infer<typeof eventDetailSchema>;
+export type SeatMapOutput = z.infer<typeof seatMapSchema>;

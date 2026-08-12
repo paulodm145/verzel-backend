@@ -9,6 +9,7 @@ import { createGateRouter } from "./modules/gate/gate.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { createReservationsRouter } from "./modules/reservations/reservations.routes.js";
 import { createTicketsRouter } from "./modules/tickets/tickets.routes.js";
+import { cors } from "./shared/middlewares/cors.js";
 import { errorHandler } from "./shared/middlewares/error-handler.js";
 import { notFoundHandler } from "./shared/middlewares/not-found.js";
 import { requestId } from "./shared/middlewares/request-id.js";
@@ -24,6 +25,9 @@ export function createApp(): Express {
   app.disable("x-powered-by");
 
   app.use(requestId);
+  // Antes de tudo: o preflight precisa ser respondido sem passar por
+  // autenticação nem por parser de corpo
+  app.use(cors);
   // Limite explícito: sem ele o padrão de 100kb vira uma surpresa silenciosa,
   // e um limite alto demais é superfície de abuso
   app.use(express.json({ limit: "100kb" }));

@@ -63,6 +63,13 @@ export interface EventsRepository {
   replaceSeats(eventId: string, capacity: number): Promise<void>;
   list(filter: ListFilter): Promise<EventPage>;
   countAvailableSeats(eventId: string): Promise<number>;
+  listSeats(eventId: string): Promise<readonly SeatAvailability[]>;
+}
+
+export interface SeatAvailability {
+  readonly id: string;
+  readonly label: string;
+  readonly available: boolean;
 }
 
 /**
@@ -168,6 +175,35 @@ export function createEventsRepository(
           },
         },
       });
+    },
+
+    /**
+     * Mapa completo do evento, com a disponibilidade de cada assento.
+     *
+     * Uma consulta só, trazendo junto se existe reserva ativa: buscar os
+     * assentos e depois perguntar por cada um seria N+1 num endpoint que a tela
+     * de compra chama o tempo todo.
+     */
+    async listSeats(eventId) {
+      const seats = await prisma.seat.findMany({
+        where: { eventId },
+        orderBy: { label: "asc" },
+        select: {
+          id: true,
+          label: true,
+          reservations: {
+            where: { status: { in: ["PENDING", "CONFIRMED"] } },
+            select: { id: true },
+            take: 1,
+          },
+        },
+      });
+
+      return seats.map((seat) => ({
+        id: seat.id,
+        label: seat.label,
+        available: seat.reservations.length === 0,
+      }));
     },
   };
 }

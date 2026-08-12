@@ -8,6 +8,7 @@ import type {
   EventsRepository,
   ListFilter,
 } from "./events.repository.js";
+import type { SeatMapOutput } from "./events.schema.js";
 import type {
   CreateEventInput,
   EventDetailOutput,
@@ -34,6 +35,7 @@ export interface EventsService {
     filter: ListEventsInput,
   ): Promise<{ items: EventOutput[]; total: number }>;
   detail(eventId: string): Promise<EventDetailOutput>;
+  seatMap(eventId: string): Promise<SeatMapOutput>;
 }
 
 function toOutput(event: EventRecord): EventOutput {
@@ -202,6 +204,29 @@ export function createEventsService(
       return {
         ...toOutput(event),
         availableSeatsCount: await repository.countAvailableSeats(eventId),
+      };
+    },
+
+    /**
+     * Mapa de assentos do evento — o que a tela de compra desenha, e de onde
+     * sai o `seatId` que a reserva exige.
+     *
+     * Público pelo mesmo motivo do detalhe, e restrito a evento publicado pela
+     * mesma razão: mapa de rascunho alheio não é informação pública.
+     */
+    async seatMap(eventId) {
+      const event = await repository.findById(eventId);
+
+      if (event?.status !== "PUBLISHED") {
+        throw new NotFoundError("Evento não encontrado");
+      }
+
+      const seats = await repository.listSeats(eventId);
+
+      return {
+        items: [...seats],
+        total: seats.length,
+        availableCount: seats.filter((seat) => seat.available).length,
       };
     },
   };
