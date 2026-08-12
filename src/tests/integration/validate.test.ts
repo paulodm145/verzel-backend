@@ -37,6 +37,18 @@ function buildApp() {
     res.json(validated(req, { params: paramsSchema }).params);
   });
 
+  // Encadeamento: params validados no router, corpo validado na rota — o padrão
+  // quando um recurso aninhado ganha um router próprio
+  const nested = express.Router({ mergeParams: true });
+  nested.use(validate({ params: paramsSchema }));
+  nested.post("/reservas", validate({ body: createSchema }), (req, res) => {
+    res.json({
+      params: validated(req, { params: paramsSchema }).params,
+      body: validated(req, { body: createSchema }).body,
+    });
+  });
+  app.use("/eventos/:id", nested);
+
   app.use(errorHandler);
 
   return app;
@@ -118,5 +130,20 @@ describe("validação de entrada", () => {
     const response = await request(app).get(`/eventos/${id}`);
 
     expect(response.body).toEqual({ id });
+  });
+
+  it("preserva o que um validate anterior já tinha validado", async () => {
+    const id = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+
+    const response = await request(app)
+      .post(`/eventos/${id}/reservas`)
+      .send({ email: "pessoa@example.com", name: "Pessoa" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.params).toEqual({ id });
+    expect(response.body.body).toEqual({
+      email: "pessoa@example.com",
+      name: "Pessoa",
+    });
   });
 });

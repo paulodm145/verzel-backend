@@ -9,11 +9,7 @@ export interface ValidationSchemas {
   readonly params?: ZodType;
 }
 
-interface ValidatedData {
-  body: unknown;
-  query: unknown;
-  params: unknown;
-}
+type ValidatedData = Partial<Record<keyof ValidationSchemas, unknown>>;
 
 const store = new WeakMap<Request, ValidatedData>();
 
@@ -35,11 +31,7 @@ function toDetails(error: ZodError): ErrorDetail[] {
 export function validate(schemas: ValidationSchemas): RequestHandler {
   return (request: Request, _response: Response, next: NextFunction): void => {
     const details: ErrorDetail[] = [];
-    const data: ValidatedData = {
-      body: undefined,
-      query: undefined,
-      params: undefined,
-    };
+    const data: ValidatedData = {};
 
     for (const source of ["body", "query", "params"] as const) {
       const schema = schemas[source];
@@ -62,7 +54,10 @@ export function validate(schemas: ValidationSchemas): RequestHandler {
       return;
     }
 
-    store.set(request, data);
+    // Mescla em vez de substituir: uma rota pode ter os params validados no
+    // router e o corpo na própria rota, e trocar o registro inteiro apagaria em
+    // silêncio o que o middleware anterior validou
+    store.set(request, { ...store.get(request), ...data });
     next();
   };
 }
