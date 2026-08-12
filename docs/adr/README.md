@@ -14,11 +14,13 @@ no princípio 2 da [constituição](../constitution.md).
 | [0006](0006-fixar-typescript-na-linha-6.md) | Fixar TypeScript na linha 6.x, apesar de a 7 ser a versão corrente | accepted | 2026-08-11 |
 | [0007](0007-openapi-nativo-do-zod.md) | Gerar o OpenAPI com o conversor nativo do Zod, sem lib de bridge | accepted | 2026-08-11 |
 | [0008](0008-vitest-como-runner-de-testes.md) | Vitest como runner de testes | accepted | 2026-08-11 |
+| [0009](0009-hash-de-senha-com-scrypt-nativo.md) | Derivar hash de senha com o scrypt do node:crypto | accepted | 2026-08-12 |
+| [0010](0010-refresh-token-opaco-com-rotacao.md) | Token de renovação opaco, com rotação e detecção de reuso | accepted | 2026-08-12 |
 
 ## Como adicionar um ADR
 
 ```bash
-cp docs/templates/adr.md docs/adr/0009-titulo-em-kebab-case.md
+cp docs/templates/adr.md docs/adr/0011-titulo-em-kebab-case.md
 ```
 
 Preencher, acrescentar a linha nesta tabela e commitar junto da branch do épico
