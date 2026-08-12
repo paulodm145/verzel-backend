@@ -30,6 +30,11 @@ const envSchema = z.object({
   // o lock, o assento não pode ficar bloqueado até alguém perceber
   SEAT_LOCK_TTL_MS: z.coerce.number().int().positive().default(5000),
   IDEMPOTENCY_TTL: z.coerce.number().int().positive().default(86_400),
+  // Assina o conteúdo do QR do ingresso (ADR 0004). Trocá-lo invalida os
+  // ingressos já emitidos, porque a assinatura deixa de conferir
+  TICKET_SECRET: z.string().min(32, "precisa de ao menos 32 caracteres"),
+  // Base dos links de compartilhamento de ingresso
+  APP_BASE_URL: z.url().default("http://localhost:3000"),
 });
 
 export type Env = z.infer<typeof envSchema>;
