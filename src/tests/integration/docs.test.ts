@@ -67,4 +67,55 @@ describe("documentação OpenAPI", () => {
 
     expect(response.body.components.schemas).toHaveProperty("ErrorResponse");
   });
+
+  it("documenta as cinco rotas de autenticação", async () => {
+    const response = await request(app).get("/docs.json");
+
+    for (const path of [
+      "/auth/register",
+      "/auth/login",
+      "/auth/refresh",
+      "/auth/logout",
+      "/auth/me",
+    ]) {
+      expect(response.body.paths).toHaveProperty(path);
+    }
+  });
+
+  it("declara o esquema Bearer e o exige nas rotas autenticadas", async () => {
+    const response = await request(app).get("/docs.json");
+
+    expect(response.body.components.securitySchemes.bearerAuth).toMatchObject({
+      type: "http",
+      scheme: "bearer",
+    });
+    expect(response.body.paths["/auth/me"].get.security).toEqual([
+      { bearerAuth: [] },
+    ]);
+    expect(response.body.paths["/auth/login"].post.security).toBeUndefined();
+  });
+
+  it("traz exemplo de login para os três papéis", async () => {
+    const response = await request(app).get("/docs.json");
+
+    const examples = response.body.paths["/auth/login"].post.requestBody
+      .content["application/json"].examples as Record<string, unknown>;
+
+    expect(Object.keys(examples)).toEqual(
+      expect.arrayContaining(["organizador", "cliente", "portaria"]),
+    );
+  });
+
+  it("documenta o corpo do cadastro sem o campo de papel", async () => {
+    const response = await request(app).get("/docs.json");
+
+    const properties = response.body.components.schemas.RegisterRequest
+      .properties as Record<string, unknown>;
+
+    expect(Object.keys(properties)).toEqual([
+      "name",
+      "email",
+      "password",
+    ]);
+  });
 });

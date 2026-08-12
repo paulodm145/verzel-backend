@@ -1,7 +1,7 @@
 {
   "name": "verzel-backend",
   "version": "0.1.0",
-  "description": "Backend da plataforma de eventos e ingressos — desafio Elite Dev 2026",
+  "description": "Backend da plataforma de eventos e ingressos \u2014 desafio Elite Dev 2026",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -22,6 +22,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset",
+    "db:seed": "tsx prisma/seed.ts",
     "db:test:setup": "node scripts/setup-test-db.js",
     "postinstall": "prisma generate"
   },
@@ -29,6 +30,7 @@
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "express": "^5.2.1",
+    "jose": "^6.2.8",
     "pino": "^10.3.1",
     "redis": "^6.2.1",
     "swagger-ui-express": "^5.0.1",

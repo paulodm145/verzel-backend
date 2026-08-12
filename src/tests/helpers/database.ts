@@ -23,6 +23,6 @@ export function createTestPrismaClient(): PrismaClient {
 /** Limpa as tabelas na ordem inversa das dependências. */
 export async function truncateAll(prisma: PrismaClient): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Ticket", "Payment", "Reservation", "Seat", "Event", "User" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "Ticket", "Payment", "Reservation", "Seat", "Event", "RefreshToken", "User" RESTART IDENTITY CASCADE',
   );
 }

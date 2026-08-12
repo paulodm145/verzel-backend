@@ -328,10 +328,10 @@ O script de seed (`prisma/seed.ts`) deve criar:
 - [x] Configuração Swagger base
 
 ### Épico 2 — Autenticação
-- [ ] Cadastro/login com hash de senha
-- [ ] Geração de access + refresh token
-- [ ] Middleware de autenticação e de role guard
-- [ ] Seed de usuários de teste
+- [x] Cadastro/login com hash de senha
+- [x] Geração de access + refresh token
+- [x] Middleware de autenticação e de role guard
+- [x] Seed de usuários de teste
 
 ### Épico 3 — Catálogo e eventos
 - [ ] Client de integração com API externa (Ticketmaster/TMDb) + cache Redis

@@ -52,8 +52,11 @@ export default tseslint.config(
 
   {
     // Arquivos fora do tsconfig (configuração e scripts) não têm serviço de
-    // tipos disponível; lintar sem as regras que dependem de tipo
-    files: ["**/*.js", "*.config.ts"],
+    // tipos disponível; lintar sem as regras que dependem de tipo. O
+    // prisma/seed.ts está aqui porque o Prisma espera o seed nesse caminho,
+    // enquanto o rootDir do TypeScript é src/ — ele é só o ponto de entrada, e
+    // a lógica que importa fica em modules/auth/auth.seed.ts, essa sim tipada.
+    files: ["**/*.js", "*.config.ts", "prisma/*.ts"],
     ...tseslint.configs.disableTypeChecked,
   },
 );
