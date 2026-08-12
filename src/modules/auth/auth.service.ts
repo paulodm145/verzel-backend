@@ -24,6 +24,9 @@ import {
  */
 const INVALID_CREDENTIALS = "E-mail ou senha inválidos";
 
+/** Mesma lógica para a sessão: desconhecida, expirada e revogada são uma só. */
+const INVALID_SESSION = "Sessão inválida";
+
 export interface AuthenticatedUser {
   readonly user: UserOutput;
   readonly session: SessionOutput;
@@ -32,6 +35,8 @@ export interface AuthenticatedUser {
 export interface AuthService {
   register(input: RegisterInput): Promise<AuthenticatedUser>;
   login(input: LoginInput): Promise<AuthenticatedUser>;
+  refresh(refreshToken: string): Promise<SessionOutput>;
+  logout(refreshToken: string): Promise<void>;
   profile(userId: string): Promise<UserOutput>;
 }
 
@@ -105,6 +110,72 @@ export function createAuthService(repository: AuthRepository): AuthService {
     },
 
     /**
+     * Troca o token de renovação por um par novo, invalidando o apresentado
+     * (RN-6).
+     *
+     * Um token já revogado que reaparece não é acidente comum: ou é replay, ou
+     * o token foi roubado e o legítimo já rotacionou. Nos dois casos a resposta
+     * é derrubar **todas** as sessões do usuário — quem perdeu o token perde a
+     * sessão, e quem roubou, também (RN-7, ADR 0010).
+     */
+    async refresh(refreshToken) {
+      const stored = await repository.findRefreshTokenByHash(
+        hashRefreshToken(refreshToken),
+      );
+
+      if (!stored) {
+        throw new UnauthorizedError(INVALID_SESSION);
+      }
+
+      if (stored.revokedAt) {
+        await repository.revokeAllRefreshTokensOfUser(stored.userId);
+        throw new UnauthorizedError(INVALID_SESSION);
+      }
+
+      if (stored.expiresAt.getTime() <= Date.now()) {
+        throw new UnauthorizedError(INVALID_SESSION);
+      }
+
+      const user = await repository.findUserById(stored.userId);
+
+      if (!user) {
+        throw new UnauthorizedError(INVALID_SESSION);
+      }
+
+      const replacement = createRefreshToken();
+
+      await repository.rotateRefreshToken(stored.id, {
+        userId: user.id,
+        tokenHash: hashRefreshToken(replacement),
+        expiresAt: new Date(Date.now() + getEnv().REFRESH_TOKEN_TTL * 1000),
+      });
+
+      const { token: accessToken, expiresIn } = await issueAccessToken({
+        userId: user.id,
+        role: user.role,
+      });
+
+      return { accessToken, refreshToken: replacement, expiresIn };
+    },
+
+    /**
+     * Encerra apenas a sessão apresentada — sair no celular não desloga o
+     * navegador.
+     *
+     * Token desconhecido termina em silêncio: reclamar confirmaria a quem
+     * tenta adivinhar que aquele token não existe.
+     */
+    async logout(refreshToken) {
+      const stored = await repository.findRefreshTokenByHash(
+        hashRefreshToken(refreshToken),
+      );
+
+      if (stored && !stored.revokedAt) {
+        await repository.revokeRefreshToken(stored.id);
+      }
+    },
+
+    /**
      * O token pode ser válido e o usuário já não existir. Isso é 401, não 404:
      * quem apresenta credencial de uma conta apagada não está autenticado.
      */
@@ -112,7 +183,7 @@ export function createAuthService(repository: AuthRepository): AuthService {
       const user = await repository.findUserById(userId);
 
       if (!user) {
-        throw new UnauthorizedError("Sessão inválida");
+        throw new UnauthorizedError(INVALID_SESSION);
       }
 
       return toUserOutput(user);
