@@ -18,10 +18,10 @@ commits).
 | 0003 | [Catálogo e eventos](0003-catalogo-eventos/spec.md) | 3 | `feat/0003-catalogo-eventos` | entregue |
 | 0004 | [Reserva e pagamento](0004-reserva-pagamento/spec.md) | 4 | `feat/0004-reserva-pagamento` | entregue |
 | 0005 | [Ingressos](0005-ingressos/spec.md) | 5 | `feat/0005-ingressos` | entregue |
-| 0006 | [Portaria](0006-portaria/spec.md) | 6 | `feat/0006-portaria` | em revisão |
-| 0007 | Qualidade e entrega | 7 | `chore/0007-qualidade-entrega` | não iniciada |
+| 0006 | [Portaria](0006-portaria/spec.md) | 6 | `feat/0006-portaria` | entregue |
+| 0007 | [Qualidade e entrega](0007-qualidade-entrega/spec.md) | 7 | `chore/0007-qualidade-entrega` | em revisão |
 
-A spec 0007 ainda não existe como documento. São escritas
+Todas as specs estão escritas. Elas foram escritas
 **just-in-time**, no início da branch do épico correspondente — uma spec redigida
 seis branches antes da implementação envelhece contra decisões que ainda nem
 foram tomadas.

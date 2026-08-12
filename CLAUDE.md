@@ -358,10 +358,10 @@ O script de seed (`prisma/seed.ts`) deve criar:
 - [x] Retornos claros: válido / inválido / já utilizado / evento errado
 
 ### Épico 7 — Qualidade e entrega
-- [ ] Testes unitários e de integração dos fluxos críticos
-- [ ] Seed completo de dados de teste
-- [ ] README com setup, execução, e seção de uso de IA
-- [ ] Revisão final de nomenclatura e camadas (clean code)
+- [x] Testes unitários e de integração dos fluxos críticos
+- [x] Seed completo de dados de teste
+- [x] README com setup, execução, e seção de uso de IA
+- [x] Revisão final de nomenclatura e camadas (clean code)
 
 ## 15. Regras de commit
 
