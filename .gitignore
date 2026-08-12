@@ -25,7 +25,9 @@ pnpm-debug.log*
 coverage/
 .nyc_output/
 
-# Prisma
+# Prisma — o generator `prisma-client` emite dentro de src/ e o resultado é
+# derivado do schema, não código-fonte (ver plan 0001)
+src/generated/
 prisma/*.db
 prisma/*.db-journal
 
@@ -38,3 +40,6 @@ Thumbs.db
 
 # Metadados do WSL/Windows ao copiar arquivos baixados
 *:Zone.Identifier
+
+# Configuração local do Claude Code e arquivos temporários do harness
+.claude/

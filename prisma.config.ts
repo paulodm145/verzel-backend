@@ -1,0 +1,19 @@
+import { existsSync } from "node:fs";
+
+import { defineConfig, env } from "prisma/config";
+
+// O Prisma 7 não carrega .env sozinho. Usamos o carregador nativo do Node em
+// vez de somar dotenv só para isto.
+if (existsSync(".env")) {
+  process.loadEnvFile(".env");
+}
+
+export default defineConfig({
+  schema: "prisma/schema.prisma",
+  migrations: {
+    path: "prisma/migrations",
+  },
+  datasource: {
+    url: env("DATABASE_URL"),
+  },
+});
