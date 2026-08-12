@@ -340,11 +340,11 @@ O script de seed (`prisma/seed.ts`) deve criar:
 - [x] Endpoint público de listagem/busca de eventos (cliente)
 
 ### Épico 4 — Reserva e pagamento
-- [ ] Modelagem de assentos ou capacidade por evento
-- [ ] Endpoint de reserva com lock Redis + constraint de banco
-- [ ] Expiração de reserva pendente
-- [ ] Endpoint de pagamento simulado (aprovar/recusar) com Idempotency-Key
-- [ ] Testes de concorrência na reserva
+- [x] Modelagem de assentos ou capacidade por evento
+- [x] Endpoint de reserva com lock Redis + constraint de banco
+- [x] Expiração de reserva pendente
+- [x] Endpoint de pagamento simulado (aprovar/recusar) com Idempotency-Key
+- [x] Testes de concorrência na reserva
 
 ### Épico 5 — Ingressos
 - [ ] Geração do ingresso com QR assinado (HMAC)
