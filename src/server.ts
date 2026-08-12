@@ -13,8 +13,24 @@ const server = createApp().listen(env.PORT, () => {
   logger.info({ port: env.PORT, env: env.NODE_ENV }, "servidor no ar");
 });
 
+// Prazo do desligamento gracioso. Uma requisição pendurada segura o
+// `server.close()` indefinidamente, e sem prazo o processo só morreria pelo
+// SIGKILL do orquestrador — depois de nunca ter fechado banco nem Redis
+const SHUTDOWN_TIMEOUT_MS = 10_000;
+
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, "encerrando o servidor");
+
+  const deadline = setTimeout(() => {
+    logger.error(
+      { signal, timeoutMs: SHUTDOWN_TIMEOUT_MS },
+      "desligamento excedeu o prazo; encerrando à força",
+    );
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+
+  // Não segura o processo de pé se tudo terminar antes do prazo
+  deadline.unref();
 
   // Parar de aceitar conexões antes de fechar o banco, para que requisição em
   // andamento não perca a conexão no meio
@@ -26,6 +42,7 @@ async function shutdown(signal: string): Promise<void> {
 
   await Promise.allSettled([disconnectPrisma(), disconnectRedis()]);
 
+  clearTimeout(deadline);
   logger.info("servidor encerrado");
   process.exit(0);
 }
