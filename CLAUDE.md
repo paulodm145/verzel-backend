@@ -320,12 +320,12 @@ O script de seed (`prisma/seed.ts`) deve criar:
 ## 14. Backlog
 
 ### Épico 1 — Fundação
-- [ ] Setup do projeto (TypeScript strict, ESLint, estrutura de pastas)
-- [ ] Configuração Prisma + schema inicial + migrations
-- [ ] Configuração Redis
-- [ ] Middleware de erro centralizado + classes de erro de domínio
-- [ ] Middleware de validação Zod
-- [ ] Configuração Swagger base
+- [x] Setup do projeto (TypeScript strict, ESLint, estrutura de pastas)
+- [x] Configuração Prisma + schema inicial + migrations
+- [x] Configuração Redis
+- [x] Middleware de erro centralizado + classes de erro de domínio
+- [x] Middleware de validação Zod
+- [x] Configuração Swagger base
 
 ### Épico 2 — Autenticação
 - [ ] Cadastro/login com hash de senha

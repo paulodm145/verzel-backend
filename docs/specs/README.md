@@ -13,7 +13,7 @@ commits).
 | # | Spec | Épico | Branch | Status |
 | --- | --- | --- | --- | --- |
 | 0000 | [Spec-driven development](0000-spec-driven-development/spec.md) | — | `docs/0000-spec-driven-development` | entregue |
-| 0001 | [Fundação](0001-fundacao/spec.md) | 1 | `feat/0001-fundacao` | especificada |
+| 0001 | [Fundação](0001-fundacao/spec.md) | 1 | `feat/0001-fundacao` | em revisão |
 | 0002 | Autenticação | 2 | `feat/0002-autenticacao` | não iniciada |
 | 0003 | Catálogo e eventos | 3 | `feat/0003-catalogo-eventos` | não iniciada |
 | 0004 | Reserva e pagamento | 4 | `feat/0004-reserva-pagamento` | não iniciada |
