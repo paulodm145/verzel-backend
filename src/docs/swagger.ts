@@ -8,6 +8,17 @@ import {
   sessionSchema,
   userSchema,
 } from "../modules/auth/auth.schema.js";
+import {
+  catalogItemSchema,
+  catalogSearchResponseSchema,
+} from "../modules/catalog/catalog.schema.js";
+import {
+  createEventSchema,
+  eventDetailSchema,
+  eventListSchema,
+  eventSchema,
+  updateEventSchema,
+} from "../modules/events/events.schema.js";
 import { healthReportSchema } from "../modules/health/health.schema.js";
 
 export const errorResponseSchema = z.object({
@@ -48,6 +59,13 @@ export const schemaRegistry: Record<string, RegisteredSchema> = {
   User: { schema: userSchema, io: "output" },
   Session: { schema: sessionSchema, io: "output" },
   AuthenticatedUser: { schema: registerResponseSchema, io: "output" },
+  CatalogItem: { schema: catalogItemSchema, io: "output" },
+  CatalogSearchResponse: { schema: catalogSearchResponseSchema, io: "output" },
+  CreateEventRequest: { schema: createEventSchema, io: "input" },
+  UpdateEventRequest: { schema: updateEventSchema, io: "input" },
+  Event: { schema: eventSchema, io: "output" },
+  EventDetail: { schema: eventDetailSchema, io: "output" },
+  EventList: { schema: eventListSchema, io: "output" },
 };
 
 function reference(name: string): { $ref: string } {
@@ -87,6 +105,8 @@ export function buildOpenApiDocument(): Record<string, unknown> {
     tags: [
       { name: "Saúde", description: "Estado da aplicação" },
       { name: "Autenticação", description: "Cadastro, sessão e perfil" },
+      { name: "Catálogo", description: "Busca no catálogo externo" },
+      { name: "Eventos", description: "Gestão e navegação de eventos" },
     ],
     paths: {
       "/auth/register": {
@@ -234,6 +254,146 @@ export function buildOpenApiDocument(): Record<string, unknown> {
               description: "Sem autenticação, ou token inválido",
               content: jsonContent("ErrorResponse"),
             },
+          },
+        },
+      },
+      "/catalog/search": {
+        get: {
+          tags: ["Catálogo"],
+          summary: "Buscar no catálogo externo",
+          description:
+            "Agrega os provedores configurados (TMDb, Ticketmaster). Provedor " +
+            "sem chave não é instanciado, e provedor que falha sai do " +
+            "resultado sem derrubar os demais. Resultado cacheado por 10 min.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "query", in: "query", required: true, schema: { type: "string", minLength: 2 } },
+            { name: "page", in: "query", schema: { type: "integer", minimum: 1, default: 1 } },
+          ],
+          responses: {
+            "200": { description: "Itens normalizados", content: jsonContent("CatalogSearchResponse") },
+            "401": { description: "Sem autenticação", content: jsonContent("ErrorResponse") },
+            "403": { description: "Papel diferente de ORGANIZER", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/events": {
+        post: {
+          tags: ["Eventos"],
+          summary: "Criar evento a partir do catálogo",
+          description:
+            "Nasce DRAFT e já com o mapa de assentos: um assento por unidade " +
+            "de capacidade, criados na mesma transação.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: reference("CreateEventRequest"),
+                examples: {
+                  show: {
+                    summary: "Show vindo do Ticketmaster",
+                    value: {
+                      externalId: "G5vYZ9a1bC",
+                      sourceType: "SHOW",
+                      title: "Show da Banda",
+                      date: "2026-11-20T23:00:00.000Z",
+                      venue: "Arena",
+                      capacity: 100,
+                      price: 150,
+                    },
+                  },
+                  filme: {
+                    summary: "Sessão de filme vinda do TMDb",
+                    value: {
+                      externalId: "550",
+                      sourceType: "MOVIE",
+                      title: "Clube da Luta",
+                      date: "2026-12-01T21:00:00.000Z",
+                      venue: "Cine Arena",
+                      capacity: 40,
+                      price: 32.5,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": { description: "Evento criado", content: jsonContent("Event") },
+            "400": { $ref: "#/components/responses/ValidationError" },
+            "403": { description: "Papel diferente de ORGANIZER", content: jsonContent("ErrorResponse") },
+          },
+        },
+        get: {
+          tags: ["Eventos"],
+          summary: "Listar eventos publicados",
+          description: "Pública. Só mostra PUBLISHED; rascunho e cancelado ficam de fora.",
+          parameters: [
+            { name: "search", in: "query", schema: { type: "string" } },
+            { name: "skip", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+            { name: "take", in: "query", schema: { type: "integer", minimum: 1, maximum: 50, default: 20 } },
+          ],
+          responses: {
+            "200": { description: "Página de eventos", content: jsonContent("EventList") },
+          },
+        },
+      },
+      "/events/mine": {
+        get: {
+          tags: ["Eventos"],
+          summary: "Meus eventos, em qualquer estado",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": { description: "Página de eventos do organizador", content: jsonContent("EventList") },
+            "403": { description: "Papel diferente de ORGANIZER", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/events/{id}": {
+        get: {
+          tags: ["Eventos"],
+          summary: "Detalhe público, com assentos disponíveis",
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          responses: {
+            "200": { description: "Evento", content: jsonContent("EventDetail") },
+            "404": { description: "Inexistente ou não publicado", content: jsonContent("ErrorResponse") },
+          },
+        },
+        patch: {
+          tags: ["Eventos"],
+          summary: "Editar evento próprio",
+          description: "Capacidade só muda enquanto DRAFT; a alteração regenera o mapa de assentos.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          requestBody: { required: true, content: { "application/json": { schema: reference("UpdateEventRequest") } } },
+          responses: {
+            "200": { description: "Evento atualizado", content: jsonContent("Event") },
+            "403": { description: "Evento de outro organizador", content: jsonContent("ErrorResponse") },
+            "409": { description: "Capacidade em evento publicado, ou evento cancelado", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/events/{id}/publish": {
+        post: {
+          tags: ["Eventos"],
+          summary: "Publicar evento",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          responses: {
+            "200": { description: "Evento publicado", content: jsonContent("Event") },
+            "409": { description: "Evento cancelado não volta a ser publicado", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/events/{id}/cancel": {
+        post: {
+          tags: ["Eventos"],
+          summary: "Cancelar evento",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          responses: {
+            "200": { description: "Evento cancelado", content: jsonContent("Event") },
           },
         },
       },

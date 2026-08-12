@@ -3,6 +3,8 @@ import swaggerUi from "swagger-ui-express";
 
 import { buildOpenApiDocument } from "./docs/swagger.js";
 import { createAuthRouter } from "./modules/auth/auth.routes.js";
+import { createCatalogRouter } from "./modules/catalog/catalog.routes.js";
+import { createEventsRouter } from "./modules/events/events.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { errorHandler } from "./shared/middlewares/error-handler.js";
 import { notFoundHandler } from "./shared/middlewares/not-found.js";
@@ -33,6 +35,8 @@ export function createApp(): Express {
 
   // Rotas de domínio entram aqui conforme os épicos avançam
   app.use(createAuthRouter());
+  app.use(createCatalogRouter());
+  app.use(createEventsRouter());
 
   app.use(notFoundHandler);
   app.use(errorHandler);
