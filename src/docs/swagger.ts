@@ -16,13 +16,24 @@ export const errorResponseSchema = z.object({
 });
 
 /**
+ * Um schema Zod tem duas leituras: a de entrada, em que um campo com `.default()`
+ * é opcional, e a de saída, em que ele sempre está presente. Documentar corpo de
+ * requisição como saída faria a documentação exigir do cliente um campo que o
+ * schema preenche sozinho — por isso o registro guarda qual das duas usar.
+ */
+interface RegisteredSchema {
+  readonly schema: ZodType;
+  readonly io: "input" | "output";
+}
+
+/**
  * Schemas expostos na documentação. Registrar aqui é o que garante que o
  * documento OpenAPI derive dos mesmos schemas que validam a entrada, em vez de
  * descrever o contrato uma segunda vez (ADR 0007).
  */
-export const schemaRegistry: Record<string, ZodType> = {
-  ErrorResponse: errorResponseSchema,
-  HealthReport: healthReportSchema,
+export const schemaRegistry: Record<string, RegisteredSchema> = {
+  ErrorResponse: { schema: errorResponseSchema, io: "output" },
+  HealthReport: { schema: healthReportSchema, io: "output" },
 };
 
 function reference(name: string): { $ref: string } {
@@ -41,9 +52,12 @@ function jsonContent(name: string): Record<string, unknown> {
  */
 export function buildOpenApiDocument(): Record<string, unknown> {
   const schemas = Object.fromEntries(
-    Object.entries(schemaRegistry).map(([name, schema]) => [
+    Object.entries(schemaRegistry).map(([name, registered]) => [
       name,
-      z.toJSONSchema(schema, { target: "openapi-3.0", io: "output" }),
+      z.toJSONSchema(registered.schema, {
+        target: "openapi-3.0",
+        io: registered.io,
+      }),
     ]),
   );
 

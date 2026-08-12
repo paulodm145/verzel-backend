@@ -43,17 +43,23 @@ describe("documentação OpenAPI", () => {
     }
   });
 
-  it("gera o esquema de entrada, não o de saída, para corpo de requisição", () => {
-    // Com `io: "input"`, campo com default é opcional na entrada. Sem a opção,
-    // a documentação diria que o cliente é obrigado a enviá-lo.
-    const schema = z.object({ take: z.number().default(20) });
-
-    const asInput = z.toJSONSchema(schema, {
-      target: "openapi-3.0",
+  it("documenta schema de entrada como entrada, não como saída", () => {
+    // Campo com default é opcional para quem envia. Documentado como saída, o
+    // documento diria que o cliente é obrigado a mandá-lo.
+    schemaRegistry.Paginacao = {
+      schema: z.object({ take: z.number().default(20) }),
       io: "input",
-    });
+    };
 
-    expect(asInput.required ?? []).not.toContain("take");
+    try {
+      const document = buildOpenApiDocument();
+      const schemas = (document.components as { schemas: Record<string, { required?: string[] }> })
+        .schemas;
+
+      expect(schemas.Paginacao?.required ?? []).not.toContain("take");
+    } finally {
+      delete schemaRegistry.Paginacao;
+    }
   });
 
   it("descreve o envelope de erro compartilhado", async () => {
