@@ -347,10 +347,10 @@ O script de seed (`prisma/seed.ts`) deve criar:
 - [x] Testes de concorrência na reserva
 
 ### Épico 5 — Ingressos
-- [ ] Geração do ingresso com QR assinado (HMAC)
-- [ ] Endpoint "meus ingressos" (cliente)
-- [ ] Geração de link de compartilhamento do ingresso
-- [ ] Endpoint de consulta de ingresso por link/código
+- [x] Geração do ingresso com QR assinado (HMAC)
+- [x] Endpoint "meus ingressos" (cliente)
+- [x] Geração de link de compartilhamento do ingresso
+- [x] Endpoint de consulta de ingresso por link/código
 
 ### Épico 6 — Portaria
 - [ ] Endpoint de validação de ingresso (código digitado ou payload de QR)
