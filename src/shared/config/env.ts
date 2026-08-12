@@ -23,6 +23,13 @@ const envSchema = z.object({
   TICKETMASTER_API_KEY: z.string().min(1).optional(),
   CATALOG_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   CATALOG_CACHE_TTL: z.coerce.number().int().positive().default(600),
+  // Prazo da reserva pendente, em segundos: tempo de pagar sem prender o
+  // assento para sempre
+  RESERVATION_TTL: z.coerce.number().int().positive().default(600),
+  // Vida do lock de assento. Curto de propósito: se o processo morrer segurando
+  // o lock, o assento não pode ficar bloqueado até alguém perceber
+  SEAT_LOCK_TTL_MS: z.coerce.number().int().positive().default(5000),
+  IDEMPOTENCY_TTL: z.coerce.number().int().positive().default(86_400),
 });
 
 export type Env = z.infer<typeof envSchema>;
