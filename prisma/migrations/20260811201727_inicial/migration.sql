@@ -1,3 +1,6 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "Role" AS ENUM ('ORGANIZER', 'CUSTOMER', 'GATE');
 
@@ -102,10 +105,13 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE INDEX "Event_status_date_idx" ON "Event"("status", "date");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Event_sourceType_externalId_organizerId_key" ON "Event"("sourceType", "externalId", "organizerId");
+CREATE UNIQUE INDEX "Event_organizerId_sourceType_externalId_date_key" ON "Event"("organizerId", "sourceType", "externalId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Seat_eventId_label_key" ON "Seat"("eventId", "label");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Seat_id_eventId_key" ON "Seat"("id", "eventId");
 
 -- CreateIndex
 CREATE INDEX "Reservation_status_expiresAt_idx" ON "Reservation"("status", "expiresAt");
@@ -138,7 +144,7 @@ ALTER TABLE "Reservation" ADD CONSTRAINT "Reservation_eventId_fkey" FOREIGN KEY 
 ALTER TABLE "Reservation" ADD CONSTRAINT "Reservation_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Reservation" ADD CONSTRAINT "Reservation_seatId_fkey" FOREIGN KEY ("seatId") REFERENCES "Seat"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Reservation" ADD CONSTRAINT "Reservation_seatId_eventId_fkey" FOREIGN KEY ("seatId", "eventId") REFERENCES "Seat"("id", "eventId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_reservationId_fkey" FOREIGN KEY ("reservationId") REFERENCES "Reservation"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -148,3 +154,4 @@ ALTER TABLE "Ticket" ADD CONSTRAINT "Ticket_reservationId_fkey" FOREIGN KEY ("re
 
 -- AddForeignKey
 ALTER TABLE "Ticket" ADD CONSTRAINT "Ticket_usedByGateUserId_fkey" FOREIGN KEY ("usedByGateUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

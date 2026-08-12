@@ -123,4 +123,41 @@ describe("constraint anti-overselling em Reservation", () => {
       insertReservation("res-3", "EXPIRED", customerId),
     ).resolves.toBe(1);
   });
+
+  it("rejeita reserva cujo assento pertence a outro evento", async () => {
+    const otherEventId = "66666666-6666-6666-6666-666666666666";
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "Event" (id, "organizerId", "sourceType", "externalId", title, date, venue, capacity, price, status)
+       VALUES ($1, $2, 'SHOW', 'ext-2', 'Outro Show', NOW() + INTERVAL '60 days', 'Teatro', 50, 90.00, 'PUBLISHED')`,
+      otherEventId,
+      organizerId,
+    );
+
+    // O assento é do primeiro evento; a reserva diz ser do segundo. Sem vínculo
+    // no banco, a portaria aprovaria um ingresso do evento errado (Épico 6).
+    await expect(
+      prisma.$executeRawUnsafe(
+        `INSERT INTO "Reservation" (id, "eventId", "customerId", "seatId", status, "expiresAt")
+         VALUES ($1, $2, $3, $4, 'PENDING'::"ReservationStatus", NOW() + INTERVAL '10 minutes')`,
+        "res-cruzada",
+        otherEventId,
+        customerId,
+        seatId,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("aceita duas sessões do mesmo item de catálogo para o mesmo organizador", async () => {
+    // Sexta e sábado do mesmo filme são dois eventos, não uma duplicata: o
+    // Event carrega date e venue próprios.
+    await expect(
+      prisma.$executeRawUnsafe(
+        `INSERT INTO "Event" (id, "organizerId", "sourceType", "externalId", title, date, venue, capacity, price, status)
+         VALUES ($1, $2, 'SHOW', 'ext-1', 'Show', NOW() + INTERVAL '31 days', 'Arena', 100, 150.00, 'PUBLISHED')`,
+        "77777777-7777-7777-7777-777777777777",
+        organizerId,
+      ),
+    ).resolves.toBe(1);
+  });
 });

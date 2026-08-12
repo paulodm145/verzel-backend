@@ -79,7 +79,10 @@ model Event {
   seats        Seat[]
   reservations Reservation[]
 
-  @@unique([sourceType, externalId, organizerId])
+  /// A data entra na chave: duas sessões do mesmo item de catálogo (sexta e
+  /// sábado do mesmo filme) são dois eventos, não uma duplicata. Sem ela, o
+  /// organizador ficaria limitado a uma sessão por título.
+  @@unique([organizerId, sourceType, externalId, date])
   @@index([status, date])
 }
 
@@ -94,6 +97,9 @@ model Seat {
   reservations Reservation[]
 
   @@unique([eventId, label])
+  /// Alvo da chave estrangeira composta de Reservation: é o que permite ao
+  /// banco exigir que assento e reserva pertençam ao mesmo evento
+  @@unique([id, eventId])
 }
 
 model Reservation {
@@ -108,7 +114,10 @@ model Reservation {
 
   event    Event    @relation(fields: [eventId], references: [id])
   customer User     @relation(fields: [customerId], references: [id])
-  seat     Seat     @relation(fields: [seatId], references: [id])
+  /// Chave estrangeira composta: o assento reservado tem de ser um assento
+  /// *deste* evento. Com FK só em seatId, uma reserva podia apontar para o
+  /// assento de outro evento, e a portaria aprovaria o ingresso errado.
+  seat     Seat     @relation(fields: [seatId, eventId], references: [id, eventId])
   payment  Payment?
   ticket   Ticket?
 
