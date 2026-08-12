@@ -9,6 +9,13 @@ const envSchema = z.object({
     .default("info"),
   DATABASE_URL: z.string().min(1, "obrigatória"),
   REDIS_URL: z.string().min(1, "obrigatória"),
+  // 32 caracteres é o piso para uma chave HS256 não ser o elo fraco da
+  // assinatura: um segredo curto é atacável por força bruta offline
+  JWT_SECRET: z.string().min(32, "precisa de ao menos 32 caracteres"),
+  // Em segundos. O de acesso é curto porque não há como revogá-lo; o de
+  // renovação é longo porque pode ser revogado a qualquer momento (ADR 0010)
+  ACCESS_TOKEN_TTL: z.coerce.number().int().positive().default(900),
+  REFRESH_TOKEN_TTL: z.coerce.number().int().positive().default(604_800),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -8,6 +8,7 @@ const validSource = {
   LOG_LEVEL: "info",
   DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
   REDIS_URL: "redis://localhost:6379",
+  JWT_SECRET: "um-segredo-de-teste-com-mais-de-32-caracteres",
 };
 
 describe("loadEnv", () => {
@@ -48,5 +49,24 @@ describe("loadEnv", () => {
     const broken = { ...validSource, PORT: "70000" };
 
     expect(() => loadEnv(broken)).toThrow(/PORT/);
+  });
+
+  it("recusa segredo de assinatura curto demais", () => {
+    const broken = { ...validSource, JWT_SECRET: "curto-demais" };
+
+    expect(() => loadEnv(broken)).toThrow(/JWT_SECRET/);
+  });
+
+  it("exige o segredo de assinatura, sem padrão silencioso", () => {
+    const { JWT_SECRET: _s, ...withoutSecret } = validSource;
+
+    expect(() => loadEnv(withoutSecret)).toThrow(/JWT_SECRET/);
+  });
+
+  it("aplica os prazos padrão de sessão quando ausentes", () => {
+    const env = loadEnv(validSource);
+
+    expect(env.ACCESS_TOKEN_TTL).toBe(900);
+    expect(env.REFRESH_TOKEN_TTL).toBe(604_800);
   });
 });
