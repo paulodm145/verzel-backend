@@ -334,10 +334,10 @@ O script de seed (`prisma/seed.ts`) deve criar:
 - [x] Seed de usuários de teste
 
 ### Épico 3 — Catálogo e eventos
-- [ ] Client de integração com API externa (Ticketmaster/TMDb) + cache Redis
-- [ ] Endpoint de busca no catálogo (organizador)
-- [ ] CRUD de eventos (criar a partir do catálogo, editar, publicar, cancelar)
-- [ ] Endpoint público de listagem/busca de eventos (cliente)
+- [x] Client de integração com API externa (Ticketmaster/TMDb) + cache Redis
+- [x] Endpoint de busca no catálogo (organizador)
+- [x] CRUD de eventos (criar a partir do catálogo, editar, publicar, cancelar)
+- [x] Endpoint público de listagem/busca de eventos (cliente)
 
 ### Épico 4 — Reserva e pagamento
 - [ ] Modelagem de assentos ou capacidade por evento

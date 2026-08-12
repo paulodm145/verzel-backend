@@ -14,14 +14,14 @@ commits).
 | --- | --- | --- | --- | --- |
 | 0000 | [Spec-driven development](0000-spec-driven-development/spec.md) | — | `docs/0000-spec-driven-development` | entregue |
 | 0001 | [Fundação](0001-fundacao/spec.md) | 1 | `feat/0001-fundacao` | entregue |
-| 0002 | [Autenticação](0002-autenticacao/spec.md) | 2 | `feat/0002-autenticacao` | em revisão |
-| 0003 | Catálogo e eventos | 3 | `feat/0003-catalogo-eventos` | não iniciada |
+| 0002 | [Autenticação](0002-autenticacao/spec.md) | 2 | `feat/0002-autenticacao` | entregue |
+| 0003 | [Catálogo e eventos](0003-catalogo-eventos/spec.md) | 3 | `feat/0003-catalogo-eventos` | em revisão |
 | 0004 | Reserva e pagamento | 4 | `feat/0004-reserva-pagamento` | não iniciada |
 | 0005 | Ingressos | 5 | `feat/0005-ingressos` | não iniciada |
 | 0006 | Portaria | 6 | `feat/0006-portaria` | não iniciada |
 | 0007 | Qualidade e entrega | 7 | `chore/0007-qualidade-entrega` | não iniciada |
 
-As specs de 0003 em diante ainda não existem como documento. São escritas
+As specs de 0004 em diante ainda não existem como documento. São escritas
 **just-in-time**, no início da branch do épico correspondente — uma spec redigida
 seis branches antes da implementação envelhece contra decisões que ainda nem
 foram tomadas.
