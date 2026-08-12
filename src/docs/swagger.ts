@@ -25,6 +25,11 @@ import {
   paymentSchema,
 } from "../modules/payments/payments.schema.js";
 import {
+  publicTicketSchema,
+  ticketListSchema,
+  ticketSchema,
+} from "../modules/tickets/tickets.schema.js";
+import {
   createReservationSchema,
   reservationListSchema,
   reservationSchema,
@@ -80,6 +85,9 @@ export const schemaRegistry: Record<string, RegisteredSchema> = {
   ReservationList: { schema: reservationListSchema, io: "output" },
   PayReservationRequest: { schema: payReservationSchema, io: "input" },
   Payment: { schema: paymentSchema, io: "output" },
+  Ticket: { schema: ticketSchema, io: "output" },
+  PublicTicket: { schema: publicTicketSchema, io: "output" },
+  TicketList: { schema: ticketListSchema, io: "output" },
 };
 
 function reference(name: string): { $ref: string } {
@@ -122,6 +130,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       { name: "Catálogo", description: "Busca no catálogo externo" },
       { name: "Eventos", description: "Gestão e navegação de eventos" },
       { name: "Reservas", description: "Reserva de assento e pagamento" },
+      { name: "Ingressos", description: "Ingresso com QR Code assinado" },
     ],
     paths: {
       "/auth/register": {
@@ -505,6 +514,36 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             "200": { description: "Resultado do pagamento", content: jsonContent("Payment") },
             "403": { description: "Reserva de outro cliente", content: jsonContent("ErrorResponse") },
             "409": { description: "Reserva vencida, cancelada ou já paga", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/tickets/mine": {
+        get: {
+          tags: ["Ingressos"],
+          summary: "Meus ingressos",
+          description:
+            "Traz o conteúdo do QR já assinado e o link de compartilhamento. " +
+            "O QR é verificável sem consultar o banco (ADR 0004).",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": { description: "Página de ingressos", content: jsonContent("TicketList") },
+            "401": { description: "Sem autenticação", content: jsonContent("ErrorResponse") },
+            "403": { description: "Papel diferente de CUSTOMER", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/tickets/{code}": {
+        get: {
+          tags: ["Ingressos"],
+          summary: "Consultar ingresso por código",
+          description:
+            "Pública: é o link de compartilhamento. Não devolve dados " +
+            "pessoais de quem comprou — repassar um ingresso não deveria " +
+            "repassar o comprador junto.",
+          parameters: [{ name: "code", in: "path", required: true, schema: { type: "string" }, example: "TKT-4F2K-9QX7-M3PD" }],
+          responses: {
+            "200": { description: "Ingresso", content: jsonContent("PublicTicket") },
+            "404": { description: "Código inexistente", content: jsonContent("ErrorResponse") },
           },
         },
       },

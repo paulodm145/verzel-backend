@@ -9,6 +9,7 @@ const validSource = {
   DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
   REDIS_URL: "redis://localhost:6379",
   JWT_SECRET: "um-segredo-de-teste-com-mais-de-32-caracteres",
+  TICKET_SECRET: "outro-segredo-de-teste-com-mais-de-32-caracteres",
 };
 
 describe("loadEnv", () => {
