@@ -138,6 +138,16 @@ describe("documentação OpenAPI", () => {
     expect(response.body.paths["/tickets/{code}"].get.security).toBeUndefined();
   });
 
+  it("documenta as rotas de portaria", async () => {
+    const response = await request(app).get("/docs.json");
+
+    expect(response.body.paths).toHaveProperty("/gate/validate");
+    expect(response.body.paths).toHaveProperty("/gate/tickets/{code}");
+    expect(response.body.paths["/gate/validate"].post.security).toEqual([
+      { bearerAuth: [] },
+    ]);
+  });
+
   it("documenta o corpo do cadastro sem o campo de papel", async () => {
     const response = await request(app).get("/docs.json");
 

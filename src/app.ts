@@ -5,6 +5,7 @@ import { buildOpenApiDocument } from "./docs/swagger.js";
 import { createAuthRouter } from "./modules/auth/auth.routes.js";
 import { createCatalogRouter } from "./modules/catalog/catalog.routes.js";
 import { createEventsRouter } from "./modules/events/events.routes.js";
+import { createGateRouter } from "./modules/gate/gate.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { createReservationsRouter } from "./modules/reservations/reservations.routes.js";
 import { createTicketsRouter } from "./modules/tickets/tickets.routes.js";
@@ -41,6 +42,7 @@ export function createApp(): Express {
   app.use(createEventsRouter());
   app.use(createReservationsRouter());
   app.use(createTicketsRouter());
+  app.use(createGateRouter());
 
   app.use(notFoundHandler);
   app.use(errorHandler);

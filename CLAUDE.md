@@ -353,9 +353,9 @@ O script de seed (`prisma/seed.ts`) deve criar:
 - [x] Endpoint de consulta de ingresso por link/código
 
 ### Épico 6 — Portaria
-- [ ] Endpoint de validação de ingresso (código digitado ou payload de QR)
-- [ ] Update atômico de status para evitar dupla validação
-- [ ] Retornos claros: válido / inválido / já utilizado / evento errado
+- [x] Endpoint de validação de ingresso (código digitado ou payload de QR)
+- [x] Update atômico de status para evitar dupla validação
+- [x] Retornos claros: válido / inválido / já utilizado / evento errado
 
 ### Épico 7 — Qualidade e entrega
 - [ ] Testes unitários e de integração dos fluxos críticos
