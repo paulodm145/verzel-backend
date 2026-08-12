@@ -20,6 +20,15 @@ import {
   updateEventSchema,
 } from "../modules/events/events.schema.js";
 import { healthReportSchema } from "../modules/health/health.schema.js";
+import {
+  payReservationSchema,
+  paymentSchema,
+} from "../modules/payments/payments.schema.js";
+import {
+  createReservationSchema,
+  reservationListSchema,
+  reservationSchema,
+} from "../modules/reservations/reservations.schema.js";
 
 export const errorResponseSchema = z.object({
   error: z.object({
@@ -66,6 +75,11 @@ export const schemaRegistry: Record<string, RegisteredSchema> = {
   Event: { schema: eventSchema, io: "output" },
   EventDetail: { schema: eventDetailSchema, io: "output" },
   EventList: { schema: eventListSchema, io: "output" },
+  CreateReservationRequest: { schema: createReservationSchema, io: "input" },
+  Reservation: { schema: reservationSchema, io: "output" },
+  ReservationList: { schema: reservationListSchema, io: "output" },
+  PayReservationRequest: { schema: payReservationSchema, io: "input" },
+  Payment: { schema: paymentSchema, io: "output" },
 };
 
 function reference(name: string): { $ref: string } {
@@ -107,6 +121,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       { name: "Autenticação", description: "Cadastro, sessão e perfil" },
       { name: "Catálogo", description: "Busca no catálogo externo" },
       { name: "Eventos", description: "Gestão e navegação de eventos" },
+      { name: "Reservas", description: "Reserva de assento e pagamento" },
     ],
     paths: {
       "/auth/register": {
@@ -394,6 +409,102 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
           responses: {
             "200": { description: "Evento cancelado", content: jsonContent("Event") },
+          },
+        },
+      },
+      "/events/{id}/reservations": {
+        post: {
+          tags: ["Reservas"],
+          summary: "Reservar um assento",
+          description:
+            "Protegido em duas camadas (ADR 0003): lock no Redis evita a " +
+            "corrida, e o índice único parcial no Postgres é a garantia final " +
+            "— com o Redis fora do ar, o assento continua sem vender duas vezes.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+            {
+              name: "Idempotency-Key",
+              in: "header",
+              required: false,
+              schema: { type: "string" },
+              description:
+                "Repetir a requisição com a mesma chave devolve a resposta da " +
+                "primeira, sem criar outra reserva nem cobrar de novo. A " +
+                "resposta reproduzida vem com o cabeçalho Idempotency-Replayed.",
+            },
+          ],
+          requestBody: { required: true, content: { "application/json": { schema: reference("CreateReservationRequest") } } },
+          responses: {
+            "201": { description: "Reserva pendente criada", content: jsonContent("Reservation") },
+            "400": { $ref: "#/components/responses/ValidationError" },
+            "403": { description: "Papel diferente de CUSTOMER", content: jsonContent("ErrorResponse") },
+            "404": { description: "Evento ou assento inexistente", content: jsonContent("ErrorResponse") },
+            "409": { description: "Assento já reservado, ou evento não publicado", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/reservations/mine": {
+        get: {
+          tags: ["Reservas"],
+          summary: "Minhas reservas",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": { description: "Página de reservas", content: jsonContent("ReservationList") },
+          },
+        },
+      },
+      "/reservations/{id}": {
+        delete: {
+          tags: ["Reservas"],
+          summary: "Cancelar a própria reserva",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          responses: {
+            "200": { description: "Reserva cancelada; o assento volta a ficar livre", content: jsonContent("Reservation") },
+            "403": { description: "Reserva de outro cliente", content: jsonContent("ErrorResponse") },
+            "409": { description: "Reserva não está pendente", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/reservations/{id}/payment": {
+        post: {
+          tags: ["Reservas"],
+          summary: "Pagar a reserva (simulado)",
+          description:
+            "Aprovado confirma a reserva; recusado a deixa pendente para nova " +
+            "tentativa até o prazo vencer. O campo `simulate` existe porque " +
+            "não há gateway real: é ele que permite demonstrar a recusa.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+            {
+              name: "Idempotency-Key",
+              in: "header",
+              required: false,
+              schema: { type: "string" },
+              description:
+                "Repetir a requisição com a mesma chave devolve a resposta da " +
+                "primeira, sem criar outra reserva nem cobrar de novo. A " +
+                "resposta reproduzida vem com o cabeçalho Idempotency-Replayed.",
+            },
+          ],
+          requestBody: {
+            required: false,
+            content: {
+              "application/json": {
+                schema: reference("PayReservationRequest"),
+                examples: {
+                  aprovado: { summary: "Pagamento aprovado", value: { paymentMethod: "PIX", simulate: "APPROVED" } },
+                  recusado: { summary: "Pagamento recusado", value: { paymentMethod: "CREDIT_CARD", simulate: "REFUSED" } },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Resultado do pagamento", content: jsonContent("Payment") },
+            "403": { description: "Reserva de outro cliente", content: jsonContent("ErrorResponse") },
+            "409": { description: "Reserva vencida, cancelada ou já paga", content: jsonContent("ErrorResponse") },
           },
         },
       },

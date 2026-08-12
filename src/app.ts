@@ -6,6 +6,7 @@ import { createAuthRouter } from "./modules/auth/auth.routes.js";
 import { createCatalogRouter } from "./modules/catalog/catalog.routes.js";
 import { createEventsRouter } from "./modules/events/events.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
+import { createReservationsRouter } from "./modules/reservations/reservations.routes.js";
 import { errorHandler } from "./shared/middlewares/error-handler.js";
 import { notFoundHandler } from "./shared/middlewares/not-found.js";
 import { requestId } from "./shared/middlewares/request-id.js";
@@ -37,6 +38,7 @@ export function createApp(): Express {
   app.use(createAuthRouter());
   app.use(createCatalogRouter());
   app.use(createEventsRouter());
+  app.use(createReservationsRouter());
 
   app.use(notFoundHandler);
   app.use(errorHandler);
