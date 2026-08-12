@@ -13,3 +13,16 @@ if (existsSync(".env")) {
 // O teste que precisa inspecionar o log constrói o seu próprio logger.
 process.env.LOG_LEVEL = "silent";
 process.env.NODE_ENV = "test";
+
+// O client compartilhado (lib/prisma.ts) lê DATABASE_URL. Sem esta troca, todo
+// teste que o importa cai no banco de desenvolvimento — e basta um deles passar
+// a escrever para apagar dados de trabalho. A separação vira garantia do
+// ambiente inteiro, não promessa de quem lembra de usar o helper.
+if (!process.env.TEST_DATABASE_URL) {
+  throw new Error(
+    "TEST_DATABASE_URL não definida. Os testes de integração exigem um banco " +
+      "separado — ver .env.example.",
+  );
+}
+
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
