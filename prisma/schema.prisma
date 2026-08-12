@@ -57,6 +57,27 @@ model User {
   organizedEvents Event[]       @relation("EventOrganizer")
   reservations    Reservation[]
   validatedTickets Ticket[]     @relation("TicketValidatedBy")
+  refreshTokens   RefreshToken[]
+}
+
+/// Sessão de longa duração. Guarda o hash do token, nunca o token: banco
+/// vazado não entrega sessão ativa (ADR 0010).
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  /// Nulo enquanto a sessão vale. Preenchido pela rotação, pelo logout ou pela
+  /// revogação em massa que a detecção de reuso dispara.
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Revogar todas as sessões de um usuário é uma varredura por userId
+  @@index([userId])
+  /// Serve à limpeza dos vencidos
+  @@index([expiresAt])
 }
 
 model Event {
