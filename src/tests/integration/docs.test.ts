@@ -106,6 +106,30 @@ describe("documentação OpenAPI", () => {
     );
   });
 
+  it("documenta as rotas de catálogo e de evento", async () => {
+    const response = await request(app).get("/docs.json");
+
+    for (const path of [
+      "/catalog/search",
+      "/events",
+      "/events/mine",
+      "/events/{id}",
+      "/events/{id}/publish",
+      "/events/{id}/cancel",
+    ]) {
+      expect(response.body.paths).toHaveProperty(path);
+    }
+  });
+
+  it("marca a listagem pública de eventos como aberta e a criação como autenticada", async () => {
+    const response = await request(app).get("/docs.json");
+
+    expect(response.body.paths["/events"].get.security).toBeUndefined();
+    expect(response.body.paths["/events"].post.security).toEqual([
+      { bearerAuth: [] },
+    ]);
+  });
+
   it("documenta o corpo do cadastro sem o campo de papel", async () => {
     const response = await request(app).get("/docs.json");
 

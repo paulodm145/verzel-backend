@@ -81,6 +81,10 @@ Com a aplicação no ar:
 | `POST /auth/register` · `/auth/login` | Cadastro de cliente e autenticação |
 | `POST /auth/refresh` · `/auth/logout` | Renovação e encerramento da sessão |
 | `GET /auth/me` | Perfil de quem apresenta o token |
+| `GET /catalog/search` | Busca no catálogo externo (organizador) |
+| `POST /events` · `PATCH /events/:id` | Criação e edição pelo organizador dono |
+| `POST /events/:id/publish` · `/cancel` | Transições de estado do evento |
+| `GET /events` · `GET /events/:id` | Listagem e detalhe públicos |
 
 O `/health` distingue os dois serviços porque eles não têm o mesmo peso: sem
 Postgres não há serviço e a resposta é `error` com HTTP 503; sem Redis o sistema
@@ -137,6 +141,26 @@ curl -s -X POST http://localhost:3000/auth/login \
 O `/docs` traz esses mesmos exemplos prontos em `POST /auth/login`, para entrar
 em cada papel sem sair do navegador. O seed é idempotente: rodar de novo não
 duplica conta nem reescreve senha.
+
+### Catálogo externo
+
+O organizador cria eventos a partir de um catálogo externo — filmes do TMDb,
+shows do Ticketmaster. As duas integrações ficam atrás de uma interface comum, e
+a fábrica instancia **apenas o provedor cuja chave estiver no `.env`**
+([ADR 0005](docs/adr/0005-adapter-para-catalogo-externo.md)):
+
+- com `TMDB_API_KEY`, a busca traz filmes;
+- com `TICKETMASTER_API_KEY`, traz shows;
+- com as duas, traz os dois tipos, agregados;
+- **sem nenhuma**, `GET /catalog/search` responde `200` com lista vazia, e o
+  resto do sistema segue funcionando. Nada quebra por falta de chave.
+
+Provedor que falha ou demora além do prazo sai do resultado sem derrubar os
+demais, e cada busca fica 10 minutos no cache do Redis para não estourar a cota
+gratuita durante uma avaliação.
+
+Uma vez criado, o evento guarda os dados já normalizados: servi-lo **nunca**
+chama a API externa de novo.
 
 ### Variáveis de ambiente
 

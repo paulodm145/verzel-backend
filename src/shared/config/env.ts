@@ -16,6 +16,13 @@ const envSchema = z.object({
   // renovação é longo porque pode ser revogado a qualquer momento (ADR 0010)
   ACCESS_TOKEN_TTL: z.coerce.number().int().positive().default(900),
   REFRESH_TOKEN_TTL: z.coerce.number().int().positive().default(604_800),
+  // Catálogo externo: as duas chaves são opcionais, e a fábrica instancia
+  // apenas o provedor que tiver a sua. Sem nenhuma, a busca responde vazio e o
+  // resto do sistema segue de pé (RN-2 da spec 0003)
+  TMDB_API_KEY: z.string().min(1).optional(),
+  TICKETMASTER_API_KEY: z.string().min(1).optional(),
+  CATALOG_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  CATALOG_CACHE_TTL: z.coerce.number().int().positive().default(600),
 });
 
 export type Env = z.infer<typeof envSchema>;
