@@ -25,6 +25,10 @@ import {
   paymentSchema,
 } from "../modules/payments/payments.schema.js";
 import {
+  validateTicketSchema,
+  validationResultSchema,
+} from "../modules/gate/gate.schema.js";
+import {
   publicTicketSchema,
   ticketListSchema,
   ticketSchema,
@@ -88,6 +92,8 @@ export const schemaRegistry: Record<string, RegisteredSchema> = {
   Ticket: { schema: ticketSchema, io: "output" },
   PublicTicket: { schema: publicTicketSchema, io: "output" },
   TicketList: { schema: ticketListSchema, io: "output" },
+  ValidateTicketRequest: { schema: validateTicketSchema, io: "input" },
+  ValidationResult: { schema: validationResultSchema, io: "output" },
 };
 
 function reference(name: string): { $ref: string } {
@@ -131,6 +137,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       { name: "Eventos", description: "Gestão e navegação de eventos" },
       { name: "Reservas", description: "Reserva de assento e pagamento" },
       { name: "Ingressos", description: "Ingresso com QR Code assinado" },
+      { name: "Portaria", description: "Validação de ingresso na entrada" },
     ],
     paths: {
       "/auth/register": {
@@ -543,6 +550,55 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           parameters: [{ name: "code", in: "path", required: true, schema: { type: "string" }, example: "TKT-4F2K-9QX7-M3PD" }],
           responses: {
             "200": { description: "Ingresso", content: jsonContent("PublicTicket") },
+            "404": { description: "Código inexistente", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/gate/validate": {
+        post: {
+          tags: ["Portaria"],
+          summary: "Validar ingresso na entrada",
+          description:
+            "Responde sempre 200 com um resultado: VALID, INVALID, " +
+            "ALREADY_USED ou WRONG_EVENT. A portaria precisa de um resultado " +
+            "para mostrar, não de um erro HTTP para tratar.\n\n" +
+            "A assinatura do QR é conferida antes de qualquer consulta ao " +
+            "banco, e a marcação de uso é atômica: dois portões validando o " +
+            "mesmo ingresso produzem exatamente uma entrada.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: reference("ValidateTicketRequest"),
+                examples: {
+                  porQr: {
+                    summary: "Leitura do QR Code",
+                    value: { qrContent: "eyJ0aWNrZXRJZCI6Ii4uLiJ9.assinatura", eventId: "11111111-1111-1111-1111-111111111111" },
+                  },
+                  porCodigo: {
+                    summary: "Código digitado, quando a câmera falha",
+                    value: { code: "TKT-4F2K-9QX7-M3PD", eventId: "11111111-1111-1111-1111-111111111111" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Resultado da validação", content: jsonContent("ValidationResult") },
+            "400": { $ref: "#/components/responses/ValidationError" },
+            "403": { description: "Papel diferente de GATE", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/gate/tickets/{code}": {
+        get: {
+          tags: ["Portaria"],
+          summary: "Consultar ingresso sem marcar uso",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "code", in: "path", required: true, schema: { type: "string" }, example: "TKT-4F2K-9QX7-M3PD" }],
+          responses: {
+            "200": { description: "Situação do ingresso", content: jsonContent("ValidationResult") },
             "404": { description: "Código inexistente", content: jsonContent("ErrorResponse") },
           },
         },
