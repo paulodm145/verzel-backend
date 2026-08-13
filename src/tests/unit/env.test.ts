@@ -64,6 +64,22 @@ describe("loadEnv", () => {
     expect(() => loadEnv(withoutSecret)).toThrow(/JWT_SECRET/);
   });
 
+  it("trata chave de catálogo vazia como não configurada", () => {
+    // É o que acontece com quem copia o .env.example e preenche só uma das
+    // duas chaves: a outra fica em branco, e recusar iniciar por causa disso
+    // seria hostil
+    const env = loadEnv({ ...validSource, TMDB_API_KEY: "", TICKETMASTER_API_KEY: "   " });
+
+    expect(env.TMDB_API_KEY).toBeUndefined();
+    expect(env.TICKETMASTER_API_KEY).toBeUndefined();
+  });
+
+  it("aceita a chave de catálogo quando preenchida", () => {
+    const env = loadEnv({ ...validSource, TMDB_API_KEY: "uma-chave" });
+
+    expect(env.TMDB_API_KEY).toBe("uma-chave");
+  });
+
   it("aplica os prazos padrão de sessão quando ausentes", () => {
     const env = loadEnv(validSource);
 
