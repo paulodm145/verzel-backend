@@ -6,6 +6,7 @@ import {
   seatLabelsFor,
   type EventsRepository,
 } from "../../modules/events/events.repository.js";
+import { ConflictError } from "../../shared/errors/index.js";
 import { createTestPrismaClient, truncateAll } from "../helpers/database.js";
 
 const organizerId = "99999999-9999-9999-9999-999999999999";
@@ -130,6 +131,38 @@ describe("EventsRepository", () => {
     });
 
     await expect(repository.countAvailableSeats(event.id)).resolves.toBe(2);
+  });
+
+  it("traduz item de catálogo repetido em conflito, e não em erro interno", async () => {
+    await repository.create({
+      organizerId,
+      sourceType: "SHOW",
+      externalId: "repetido",
+      title: "Show",
+      description: null,
+      imageUrl: null,
+      date: new Date("2026-11-20T23:00:00Z"),
+      venue: "Arena",
+      capacity: 2,
+      price: 100,
+    });
+
+    // O organizador que clica duas vezes em "criar" merece saber que o evento
+    // já existe, não um 500
+    await expect(
+      repository.create({
+        organizerId,
+        sourceType: "SHOW",
+        externalId: "repetido",
+        title: "Show",
+        description: null,
+        imageUrl: null,
+        date: new Date("2026-11-20T23:00:00Z"),
+        venue: "Arena",
+        capacity: 2,
+        price: 100,
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it("lista o mapa marcando o assento reservado como indisponível", async () => {

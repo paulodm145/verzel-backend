@@ -29,7 +29,17 @@ export const updateEventSchema = createEventSchema
   });
 
 export const listEventsSchema = z.object({
-  search: z.string().trim().min(1).max(200).optional(),
+  /**
+   * Busca vazia é o mesmo que não buscar. Um campo de texto no frontend manda
+   * `?search=` assim que o usuário limpa o que digitou, e recusar isso com 400
+   * obrigaria o cliente a montar a query condicionalmente — trabalho que a
+   * borda resolve melhor.
+   */
+  search: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().trim().min(1).max(200).optional(),
+  ),
   skip: z.coerce.number().int().min(0).default(0),
   take: z.coerce.number().int().min(1).max(50).default(20),
 });
