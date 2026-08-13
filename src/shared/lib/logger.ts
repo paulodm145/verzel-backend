@@ -23,6 +23,12 @@ export function getLogger(): Logger {
         "req.headers.cookie",
         "*.passwordHash",
         "*.password",
+        // Um log de corpo de requisição vazaria a sessão inteira, ou um
+        // ingresso válido, sem estes
+        "*.refreshToken",
+        "*.accessToken",
+        "*.qrContent",
+        "*.qrSignature",
       ],
       censor: "[redigido]",
     },

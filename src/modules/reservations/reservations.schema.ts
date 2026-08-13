@@ -25,6 +25,8 @@ export const reservationSchema = z.object({
 export const reservationListSchema = z.object({
   items: z.array(reservationSchema),
   total: z.number().int().nonnegative(),
+  skip: z.number().int().nonnegative(),
+  take: z.number().int().positive(),
 });
 
 export type CreateReservationInput = z.infer<typeof createReservationSchema>;

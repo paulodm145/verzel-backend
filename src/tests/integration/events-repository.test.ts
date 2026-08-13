@@ -132,6 +132,71 @@ describe("EventsRepository", () => {
     await expect(repository.countAvailableSeats(event.id)).resolves.toBe(2);
   });
 
+  it("lista o mapa marcando o assento reservado como indisponível", async () => {
+    const event = await newEvent({ capacity: 3 });
+    const customer = await prisma.user.create({
+      data: {
+        name: "Caio",
+        email: "caio@example.com",
+        passwordHash: "scrypt$hash",
+        role: "CUSTOMER",
+      },
+    });
+    const seat = await prisma.seat.findFirstOrThrow({
+      where: { eventId: event.id },
+      orderBy: { label: "asc" },
+    });
+
+    await prisma.reservation.create({
+      data: {
+        eventId: event.id,
+        customerId: customer.id,
+        seatId: seat.id,
+        status: "PENDING",
+        expiresAt: new Date(Date.now() + 600_000),
+      },
+    });
+
+    const mapa = await repository.listSeats(event.id);
+
+    expect(mapa).toHaveLength(3);
+    expect(mapa.find((assento) => assento.id === seat.id)?.available).toBe(false);
+    expect(mapa.filter((assento) => assento.available)).toHaveLength(2);
+  });
+
+  it("volta a marcar como livre depois de a reserva encerrar", async () => {
+    const event = await newEvent({ capacity: 2 });
+    const customer = await prisma.user.create({
+      data: {
+        name: "Clara",
+        email: "clara@example.com",
+        passwordHash: "scrypt$hash",
+        role: "CUSTOMER",
+      },
+    });
+    const seat = await prisma.seat.findFirstOrThrow({
+      where: { eventId: event.id },
+    });
+
+    const reserva = await prisma.reservation.create({
+      data: {
+        eventId: event.id,
+        customerId: customer.id,
+        seatId: seat.id,
+        status: "PENDING",
+        expiresAt: new Date(Date.now() + 600_000),
+      },
+    });
+    await prisma.reservation.update({
+      where: { id: reserva.id },
+      data: { status: "CANCELED" },
+    });
+
+    const mapa = await repository.listSeats(event.id);
+
+    expect(mapa.every((assento) => assento.available)).toBe(true);
+  });
+
   it("troca o mapa inteiro quando a capacidade muda", async () => {
     const event = await newEvent({ capacity: 3 });
 

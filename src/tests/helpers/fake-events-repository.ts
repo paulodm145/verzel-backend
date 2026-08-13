@@ -53,6 +53,13 @@ export function createFakeEventsRepository(): FakeEventsRepository {
       return Promise.resolve(updated);
     },
 
+    async updateWithSeats(id, changes, capacity) {
+      const updated = await this.update(id, changes);
+      seatCounts.set(id, capacity);
+
+      return updated;
+    },
+
     replaceSeats(eventId, capacity) {
       seatCounts.set(eventId, capacity);
 
@@ -79,6 +86,18 @@ export function createFakeEventsRepository(): FakeEventsRepository {
 
     countAvailableSeats(eventId) {
       return Promise.resolve(seatCounts.get(eventId) ?? 0);
+    },
+
+    listSeats(eventId) {
+      const total = seatCounts.get(eventId) ?? 0;
+
+      return Promise.resolve(
+        Array.from({ length: total }, (_unused, index) => ({
+          id: `assento-${String(index + 1)}`,
+          label: `A${String(index + 1)}`,
+          available: true,
+        })),
+      );
     },
   };
 }

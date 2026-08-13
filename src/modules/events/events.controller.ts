@@ -18,6 +18,7 @@ export interface EventsController {
   readonly listPublic: RequestHandler;
   readonly listMine: RequestHandler;
   readonly detail: RequestHandler;
+  readonly seatMap: RequestHandler;
 }
 
 export function createEventsController(
@@ -73,6 +74,12 @@ export function createEventsController(
       const { params } = validated(request, { params: eventIdSchema });
 
       response.json(await service.detail(params.id));
+    },
+
+    async seatMap(request: Request, response: Response) {
+      const { params } = validated(request, { params: eventIdSchema });
+
+      response.json(await service.seatMap(params.id));
     },
   };
 }

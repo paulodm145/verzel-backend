@@ -8,7 +8,8 @@ export interface GateService {
     gateUserId: string,
     input: ValidateTicketInput,
   ): Promise<ValidationResult>;
-  inspect(code: string): Promise<ValidationResult>;
+  /** `eventId` opcional: sem ele não há como apontar "evento errado". */
+  inspect(code: string, eventId?: string): Promise<ValidationResult>;
 }
 
 function ticketSummary(ticket: GateTicket) {
@@ -25,6 +26,37 @@ const INVALID: ValidationResult = {
   ticket: null,
   usedAt: null,
 };
+
+/**
+ * As recusas que valem tanto para validar quanto para consultar. Extraído para
+ * que o balcão não receba respostas diferentes para o mesmo ingresso: antes, a
+ * consulta dizia VALID para ingresso de outro evento, e a validação seguinte
+ * dizia WRONG_EVENT.
+ */
+function rejectionFor(
+  ticket: GateTicket,
+  eventId: string | undefined,
+): ValidationResult | null {
+  if (eventId !== undefined && ticket.eventId !== eventId) {
+    return {
+      result: "WRONG_EVENT",
+      message: `Este ingresso é de outro evento: ${ticket.eventTitle}`,
+      ticket: ticketSummary(ticket),
+      usedAt: null,
+    };
+  }
+
+  if (ticket.eventStatus === "CANCELED") {
+    return {
+      result: "INVALID",
+      message: "Este evento foi cancelado",
+      ticket: ticketSummary(ticket),
+      usedAt: null,
+    };
+  }
+
+  return null;
+}
 
 export function createGateService(repository: GateRepository): GateService {
   /**
@@ -60,24 +92,13 @@ export function createGateService(repository: GateRepository): GateService {
         return INVALID;
       }
 
-      // Ingresso legítimo na porta errada: recusar como "inválido" faria o
-      // operador acusar de falsificação quem só errou de fila (RN-5)
-      if (ticket.eventId !== input.eventId) {
-        return {
-          result: "WRONG_EVENT",
-          message: `Este ingresso é de outro evento: ${ticket.eventTitle}`,
-          ticket: ticketSummary(ticket),
-          usedAt: null,
-        };
-      }
+      // Ingresso legítimo na porta errada é WRONG_EVENT, não inválido:
+      // recusar como falsificação faria o operador acusar quem só errou de
+      // fila (RN-5)
+      const rejection = rejectionFor(ticket, input.eventId);
 
-      if (ticket.eventStatus === "CANCELED") {
-        return {
-          result: "INVALID",
-          message: "Este evento foi cancelado",
-          ticket: ticketSummary(ticket),
-          usedAt: null,
-        };
+      if (rejection) {
+        return rejection;
       }
 
       const marked = await repository.markAsUsed(ticket.id, gateUserId);
@@ -104,11 +125,17 @@ export function createGateService(repository: GateRepository): GateService {
     },
 
     /** Consulta sem marcar uso: a portaria confere antes de liberar a fila. */
-    async inspect(code) {
+    async inspect(code, eventId) {
       const ticket = await repository.findByCode(code);
 
       if (!ticket) {
         throw new NotFoundError("Ingresso não encontrado");
+      }
+
+      const rejection = rejectionFor(ticket, eventId);
+
+      if (rejection) {
+        return rejection;
       }
 
       return {

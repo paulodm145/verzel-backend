@@ -20,7 +20,9 @@ export function createTicketsRouter(
     async (request, response) => {
       const { query } = validated(request, { query: listTicketsSchema });
 
-      response.json(await service.listMine(getAuth(request).userId, query));
+      const page = await service.listMine(getAuth(request).userId, query);
+
+      response.json({ ...page, skip: query.skip, take: query.take });
     },
   );
 

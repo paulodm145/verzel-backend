@@ -8,6 +8,7 @@ import type {
   EventsRepository,
   ListFilter,
 } from "./events.repository.js";
+import type { SeatMapOutput } from "./events.schema.js";
 import type {
   CreateEventInput,
   EventDetailOutput,
@@ -34,6 +35,7 @@ export interface EventsService {
     filter: ListEventsInput,
   ): Promise<{ items: EventOutput[]; total: number }>;
   detail(eventId: string): Promise<EventDetailOutput>;
+  seatMap(eventId: string): Promise<SeatMapOutput>;
 }
 
 function toOutput(event: EventRecord): EventOutput {
@@ -120,7 +122,7 @@ export function createEventsService(
         throw new ConflictError("Evento cancelado não pode ser editado");
       }
 
-      const updated = await repository.update(eventId, {
+      const changes_ = {
         ...(changes.title !== undefined ? { title: changes.title } : {}),
         ...(changes.description !== undefined
           ? { description: changes.description ?? null }
@@ -134,11 +136,14 @@ export function createEventsService(
           ? { capacity: changes.capacity }
           : {}),
         ...(changes.price !== undefined ? { price: changes.price } : {}),
-      });
+      };
 
-      if (capacityChanged && changes.capacity !== undefined) {
-        await repository.replaceSeats(eventId, changes.capacity);
-      }
+      // Capacidade nova e mapa novo vão juntos: separados, uma falha entre as
+      // duas escritas deixaria o evento anunciando lugares inexistentes
+      const updated =
+        capacityChanged && changes.capacity !== undefined
+          ? await repository.updateWithSeats(eventId, changes_, changes.capacity)
+          : await repository.update(eventId, changes_);
 
       return toOutput(updated);
     },
@@ -202,6 +207,29 @@ export function createEventsService(
       return {
         ...toOutput(event),
         availableSeatsCount: await repository.countAvailableSeats(eventId),
+      };
+    },
+
+    /**
+     * Mapa de assentos do evento — o que a tela de compra desenha, e de onde
+     * sai o `seatId` que a reserva exige.
+     *
+     * Público pelo mesmo motivo do detalhe, e restrito a evento publicado pela
+     * mesma razão: mapa de rascunho alheio não é informação pública.
+     */
+    async seatMap(eventId) {
+      const event = await repository.findById(eventId);
+
+      if (event?.status !== "PUBLISHED") {
+        throw new NotFoundError("Evento não encontrado");
+      }
+
+      const seats = await repository.listSeats(eventId);
+
+      return {
+        items: [...seats],
+        total: seats.length,
+        availableCount: seats.filter((seat) => seat.available).length,
       };
     },
   };

@@ -66,6 +66,13 @@ export function createEventsRouter(
     validate({ params: eventIdSchema }),
     controller.detail,
   );
+  // O mapa de assentos é o que a tela de compra desenha, e de onde sai o
+  // seatId exigido pela reserva
+  router.get(
+    "/events/:id/seats",
+    validate({ params: eventIdSchema }),
+    controller.seatMap,
+  );
 
   return router;
 }

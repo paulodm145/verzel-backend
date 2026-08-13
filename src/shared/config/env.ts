@@ -35,6 +35,14 @@ const envSchema = z.object({
   TICKET_SECRET: z.string().min(32, "precisa de ao menos 32 caracteres"),
   // Base dos links de compartilhamento de ingresso
   APP_BASE_URL: z.url().default("http://localhost:3000"),
+  // Origens do frontend, separadas por vírgula. Não aceita curinga: a API é
+  // chamada com Authorization, e responder `*` a requisição autenticada é o
+  // tipo de configuração que passa em desenvolvimento e vira problema depois
+  // Intervalo da limpeza de reservas vencidas e tokens antigos, em segundos
+  HOUSEKEEPING_INTERVAL: z.coerce.number().int().positive().default(300),
+  CORS_ORIGINS: z
+    .string()
+    .default("http://localhost:5173,http://localhost:3001"),
 });
 
 export type Env = z.infer<typeof envSchema>;

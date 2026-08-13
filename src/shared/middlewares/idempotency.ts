@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
+
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 
 import { getEnv } from "../config/index.js";
+import { ConflictError } from "../errors/index.js";
 import { getLogger } from "../lib/logger.js";
 import { getRedis } from "../lib/redis.js";
 import { getAuth } from "./authenticate.js";
@@ -8,6 +11,17 @@ import { getAuth } from "./authenticate.js";
 interface StoredResponse {
   readonly status: number;
   readonly body: unknown;
+  /**
+   * Impressão digital do corpo da primeira requisição. Sem ela, reaproveitar a
+   * mesma chave para pedidos diferentes — reservar o A1 e depois o A2 —
+   * devolveria a resposta do primeiro, e o cliente acreditaria ter reservado o
+   * assento errado. Falha silenciosa é pior que erro.
+   */
+  readonly fingerprint: string;
+}
+
+function fingerprintOf(body: unknown): string {
+  return createHash("sha256").update(JSON.stringify(body ?? null)).digest("hex");
 }
 
 /**
@@ -37,18 +51,37 @@ export function idempotent(scope: string): RequestHandler {
 
     const storageKey = `idempotency:${scope}:${getAuth(request).userId}:${key}`;
 
-    void replayOrCapture(storageKey, response, next);
+    void replayOrCapture(
+      storageKey,
+      fingerprintOf(request.body),
+      response,
+      next,
+    );
   };
 }
 
 async function replayOrCapture(
   storageKey: string,
+  fingerprint: string,
   response: Response,
   next: NextFunction,
 ): Promise<void> {
   const stored = await readStored(storageKey);
 
   if (stored) {
+    // Mesma chave com corpo diferente é erro de quem chama, e reproduzir a
+    // resposta antiga esconderia o problema: o cliente acharia que fez o
+    // segundo pedido quando recebeu o resultado do primeiro
+    if (stored.fingerprint !== fingerprint) {
+      next(
+        new ConflictError(
+          "Esta Idempotency-Key já foi usada com um corpo diferente",
+        ),
+      );
+
+      return;
+    }
+
     response
       .status(stored.status)
       .set("idempotency-replayed", "true")
@@ -57,7 +90,7 @@ async function replayOrCapture(
     return;
   }
 
-  captureResponse(storageKey, response);
+  captureResponse(storageKey, fingerprint, response);
   next();
 }
 
@@ -78,12 +111,20 @@ async function readStored(storageKey: string): Promise<StoredResponse | null> {
 }
 
 /** Envolve `res.json` para gravar o que foi respondido, sem tocar no handler. */
-function captureResponse(storageKey: string, response: Response): void {
+function captureResponse(
+  storageKey: string,
+  fingerprint: string,
+  response: Response,
+): void {
   const originalJson = response.json.bind(response);
 
   response.json = (body: unknown): Response => {
     if (response.statusCode < 400) {
-      void store(storageKey, { status: response.statusCode, body });
+      void store(storageKey, {
+        status: response.statusCode,
+        body,
+        fingerprint,
+      });
     }
 
     return originalJson(body);

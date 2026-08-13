@@ -42,8 +42,21 @@ export function createRedisCatalogCache(): CatalogCache {
   };
 }
 
-function cacheKeyOf(params: CatalogSearchParams): string {
-  return `catalog:search:${params.query.toLowerCase()}:${String(params.page)}`;
+/**
+ * A chave inclui quais provedores estão ativos: sem isso, ligar a chave do
+ * Ticketmaster serviria por até dez minutos um resultado cacheado que só tem
+ * filmes do TMDb.
+ */
+function cacheKeyOf(
+  params: CatalogSearchParams,
+  providers: readonly CatalogProvider[],
+): string {
+  const nomes = providers
+    .map((provider) => provider.name)
+    .sort()
+    .join("+");
+
+  return `catalog:search:${nomes}:${params.query.toLowerCase()}:${String(params.page)}`;
 }
 
 export function createCatalogService(
@@ -63,7 +76,7 @@ export function createCatalogService(
         return [];
       }
 
-      const key = cacheKeyOf(params);
+      const key = cacheKeyOf(params, providers);
       const cached = await cache.read(key);
 
       if (cached) {

@@ -4,7 +4,11 @@ import { authenticate, getAuth } from "../../shared/middlewares/authenticate.js"
 import { requireRole } from "../../shared/middlewares/require-role.js";
 import { validate, validated } from "../../shared/middlewares/validate.js";
 import { createGateRepository } from "./gate.repository.js";
-import { gateTicketCodeSchema, validateTicketSchema } from "./gate.schema.js";
+import {
+  gateInspectQuerySchema,
+  gateTicketCodeSchema,
+  validateTicketSchema,
+} from "./gate.schema.js";
 import { createGateService, type GateService } from "./gate.service.js";
 
 export function createGateRouter(
@@ -29,11 +33,14 @@ export function createGateRouter(
   router.get(
     "/gate/tickets/:code",
     ...gateOnly,
-    validate({ params: gateTicketCodeSchema }),
+    validate({ params: gateTicketCodeSchema, query: gateInspectQuerySchema }),
     async (request, response) => {
-      const { params } = validated(request, { params: gateTicketCodeSchema });
+      const { params, query } = validated(request, {
+        params: gateTicketCodeSchema,
+        query: gateInspectQuerySchema,
+      });
 
-      response.json(await service.inspect(params.code));
+      response.json(await service.inspect(params.code, query.eventId));
     },
   );
 

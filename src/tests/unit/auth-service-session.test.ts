@@ -25,6 +25,16 @@ beforeEach(() => {
   service = createAuthService(repository);
 });
 
+/** Descobre de quem é o token, para o logout receber o dono correto. */
+function usuarioDaSessao(refreshToken: string): string {
+  const hash = hashRefreshToken(refreshToken);
+  const stored = [...repository.tokens.values()].find(
+    (token) => token.tokenHash === hash,
+  );
+
+  return stored?.userId ?? "";
+}
+
 function activeTokenCount(): number {
   return [...repository.tokens.values()].filter((token) => !token.revokedAt)
     .length;
@@ -94,10 +104,21 @@ describe("renovação", () => {
 });
 
 describe("logout", () => {
+  it("ignora token de outro usuário — sair não derruba a sessão alheia", async () => {
+    const { session } = await service.register(registration);
+
+    await service.logout("outro-usuario-qualquer", session.refreshToken);
+
+    // A sessão do dono continua de pé
+    await expect(service.refresh(session.refreshToken)).resolves.toMatchObject({
+      accessToken: expect.any(String),
+    });
+  });
+
   it("invalida o token de renovação apresentado", async () => {
     const { session } = await service.register(registration);
 
-    await service.logout(session.refreshToken);
+    await service.logout(usuarioDaSessao(session.refreshToken), session.refreshToken);
 
     await expect(service.refresh(session.refreshToken)).rejects.toBeInstanceOf(
       UnauthorizedError,
@@ -111,7 +132,7 @@ describe("logout", () => {
       password: registration.password,
     });
 
-    await service.logout(primeira.refreshToken);
+    await service.logout(usuarioDaSessao(primeira.refreshToken), primeira.refreshToken);
 
     await expect(service.refresh(segunda.refreshToken)).resolves.toMatchObject({
       accessToken: expect.any(String),
@@ -119,7 +140,9 @@ describe("logout", () => {
   });
 
   it("aceita token desconhecido em silêncio — sair não confirma o que existe", async () => {
-    await expect(service.logout("token-que-nunca-existiu")).resolves.toBeUndefined();
+    await expect(
+      service.logout("qualquer-usuario", "token-que-nunca-existiu"),
+    ).resolves.toBeUndefined();
   });
 
   it("guarda apenas o hash: o token entregue não aparece no repositório", async () => {

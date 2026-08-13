@@ -74,7 +74,9 @@ export function createReservationsRouter(
     async (request, response) => {
       const { query } = validated(request, { query: listReservationsSchema });
 
-      response.json(await reservations.listMine(getAuth(request).userId, query));
+      const page = await reservations.listMine(getAuth(request).userId, query);
+
+      response.json({ ...page, skip: query.skip, take: query.take });
     },
   );
 

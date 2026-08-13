@@ -61,8 +61,25 @@ export interface EventsRepository {
   update(id: string, changes: EventChanges): Promise<EventRecord>;
   /** Troca o mapa inteiro; só faz sentido em rascunho (RN-8). */
   replaceSeats(eventId: string, capacity: number): Promise<void>;
+  /**
+   * Altera o evento e regenera o mapa **na mesma transação**. Em duas escritas
+   * separadas, uma falha no meio deixaria a capacidade divergindo do número de
+   * assentos, e o evento anunciaria lugares que não existem.
+   */
+  updateWithSeats(
+    id: string,
+    changes: EventChanges,
+    capacity: number,
+  ): Promise<EventRecord>;
   list(filter: ListFilter): Promise<EventPage>;
   countAvailableSeats(eventId: string): Promise<number>;
+  listSeats(eventId: string): Promise<readonly SeatAvailability[]>;
+}
+
+export interface SeatAvailability {
+  readonly id: string;
+  readonly label: string;
+  readonly available: boolean;
 }
 
 /**
@@ -132,6 +149,16 @@ export function createEventsRepository(
       ]);
     },
 
+    async updateWithSeats(id, changes, capacity) {
+      const [updated] = await prisma.$transaction([
+        prisma.event.update({ where: { id }, data: changes }),
+        prisma.seat.deleteMany({ where: { eventId: id } }),
+        prisma.seat.createMany({ data: seatRows(id, capacity) }),
+      ]);
+
+      return updated;
+    },
+
     async list(filter) {
       const where = {
         ...(filter.status ? { status: filter.status } : {}),
@@ -168,6 +195,35 @@ export function createEventsRepository(
           },
         },
       });
+    },
+
+    /**
+     * Mapa completo do evento, com a disponibilidade de cada assento.
+     *
+     * Uma consulta só, trazendo junto se existe reserva ativa: buscar os
+     * assentos e depois perguntar por cada um seria N+1 num endpoint que a tela
+     * de compra chama o tempo todo.
+     */
+    async listSeats(eventId) {
+      const seats = await prisma.seat.findMany({
+        where: { eventId },
+        orderBy: { label: "asc" },
+        select: {
+          id: true,
+          label: true,
+          reservations: {
+            where: { status: { in: ["PENDING", "CONFIRMED"] } },
+            select: { id: true },
+            take: 1,
+          },
+        },
+      });
+
+      return seats.map((seat) => ({
+        id: seat.id,
+        label: seat.label,
+        available: seat.reservations.length === 0,
+      }));
     },
   };
 }

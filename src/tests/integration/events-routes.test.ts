@@ -177,6 +177,24 @@ describe("ciclo de vida do evento", () => {
     expect(response.status).toBe(409);
   });
 
+  it("mantém capacidade e mapa em sincronia ao editar rascunho", async () => {
+    const criado = await criarEvento();
+
+    const atualizado = await request(app)
+      .patch(`/events/${idOf(criado)}`)
+      .set("authorization", await tokenDe(organizador, "ORGANIZER"))
+      .send({ capacity: 25 });
+
+    expect(atualizado.body.capacity).toBe(25);
+
+    await request(app)
+      .post(`/events/${idOf(criado)}/publish`)
+      .set("authorization", await tokenDe(organizador, "ORGANIZER"));
+    const mapa = await request(app).get(`/events/${idOf(criado)}/seats`);
+
+    expect(mapa.body.total).toBe(25);
+  });
+
   it("recusa publicar evento cancelado", async () => {
     const criado = await criarEvento();
     await request(app)
@@ -262,6 +280,28 @@ describe("rotas públicas", () => {
     const criado = await criarEvento();
 
     const response = await request(app).get(`/events/${idOf(criado)}`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("entrega o mapa de assentos com os ids que a reserva exige", async () => {
+    const evento = await publicar();
+
+    const response = await request(app).get(`/events/${evento.id}/seats`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ total: 10, availableCount: 10 });
+    expect(response.body.items[0]).toMatchObject({
+      label: expect.any(String),
+      available: true,
+    });
+    expect(response.body.items[0].id).toBeTruthy();
+  });
+
+  it("não entrega o mapa de um rascunho", async () => {
+    const criado = await criarEvento();
+
+    const response = await request(app).get(`/events/${idOf(criado)}/seats`);
 
     expect(response.status).toBe(404);
   });
