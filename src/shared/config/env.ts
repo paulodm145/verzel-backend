@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+/**
+ * Variável opcional que, num arquivo `.env`, costuma aparecer **vazia** em vez
+ * de ausente — é o que acontece com quem copia o `.env.example` e preenche só
+ * uma das chaves. Tratar `""` como "não configurada" evita que a aplicação
+ * recuse iniciar por causa de uma linha que a pessoa deixou em branco de
+ * propósito.
+ */
+function optionalKey() {
+  return z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().min(1).optional(),
+  );
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -19,8 +34,8 @@ const envSchema = z.object({
   // Catálogo externo: as duas chaves são opcionais, e a fábrica instancia
   // apenas o provedor que tiver a sua. Sem nenhuma, a busca responde vazio e o
   // resto do sistema segue de pé (RN-2 da spec 0003)
-  TMDB_API_KEY: z.string().min(1).optional(),
-  TICKETMASTER_API_KEY: z.string().min(1).optional(),
+  TMDB_API_KEY: optionalKey(),
+  TICKETMASTER_API_KEY: optionalKey(),
   CATALOG_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   CATALOG_CACHE_TTL: z.coerce.number().int().positive().default(600),
   // Prazo da reserva pendente, em segundos: tempo de pagar sem prender o
