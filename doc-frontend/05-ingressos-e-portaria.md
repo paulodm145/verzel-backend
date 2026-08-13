@@ -37,11 +37,45 @@ navegador faz melhor, e a string é o que a portaria lê.
 ```tsx
 import { QRCodeSVG } from "qrcode.react";
 
-<QRCodeSVG value={ticket.qrContent} size={256} level="M" />;
+<QRCodeSVG
+  value={ticket.qrContent}
+  size={280}
+  level="M"        // "L" deixa o código menos denso: 53×53 em vez de 61×61
+  marginSize={4}   // zona silenciosa; sem ela, muitos leitores falham
+/>;
 ```
 
-O conteúdo tem ~200 caracteres, então qualquer nível de correção de erro serve.
-Use SVG em vez de canvas: escala melhor na tela do celular, que é onde o
+### Dimensionamento — medido, não estimado
+
+O `qrContent` tem **215 caracteres** em base64url. Como base64url usa minúsculas
+e `-`/`_`, o codificador escolhe o **modo byte** (8 bits por caractere), e não o
+alfanumérico — por isso o código sai mais denso que o de uma URL curta.
+
+Geração e leitura de volta, conferidas com um decodificador real:
+
+| Correção | Versão | Módulos | Tamanho renderizado | Leitura |
+| --- | --- | --- | --- | --- |
+| `L` | 9 | 53×53 | 244×244 px | idêntico |
+| `M` | 11 | 61×61 | 276×276 px | idêntico |
+| `M` | 11 | 61×61 | 207×207 px | idêntico |
+| `M` | 11 | 61×61 | 138×138 px | idêntico |
+| `H` | 15 | 77×77 | 340×340 px | idêntico |
+
+Cabe com folga: o limite da versão 11 com correção `M` passa de 300 bytes.
+
+**Renderize com 256 a 320 px.** Os 138 px da tabela decodificaram, mas ali os
+pixels eram perfeitos — na entrada do evento a câmera fotografa uma tela com
+brilho, reflexo e tremor, e essa margem some rápido.
+
+### O que estraga a leitura, e não tem a ver com o backend
+
+- **Falta de zona silenciosa.** A borda branca de 4 módulos faz parte do padrão.
+  Encostar o QR na borda de um card é a causa mais comum de "não lê".
+- **Fundo colorido ou gradiente.** Preto sobre branco. Card escuro? Ponha o QR
+  dentro de um retângulo branco.
+- **Logo no meio.** Cobre módulos e só sobrevive com correção `H`. Não compensa.
+
+Use **SVG** em vez de canvas: escala melhor na tela do celular, que é onde o
 ingresso será mostrado.
 
 **Mostre também o `code` em texto**, grande e legível. Câmera falha, e a portaria
