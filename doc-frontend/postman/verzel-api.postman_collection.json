@@ -1,0 +1,1383 @@
+{
+  "info": {
+    "name": "Verzel — Plataforma de Eventos e Ingressos",
+    "description": "API do desafio Elite Dev 2026.\n\n**Como usar:** rode `Autenticação > Login (cliente)` primeiro — o script de teste guarda o `accessToken` e o `refreshToken` nas variáveis da coleção, e todas as demais requisições passam a autenticar sozinhas.\n\nAs credenciais são as do seed (`npm run db:seed`), documentadas no README.\n\nO token de acesso dura 15 minutos. Quando expirar, rode `Renovar sessão` ou faça login de novo.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "description": "Base da API"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "description": "Preenchido pelo login"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "description": "Preenchido pelo login"
+    },
+    {
+      "key": "eventId",
+      "value": "",
+      "description": "Preenchido ao listar eventos"
+    },
+    {
+      "key": "seatId",
+      "value": "",
+      "description": "Preenchido ao buscar o mapa de assentos"
+    },
+    {
+      "key": "reservationId",
+      "value": "",
+      "description": "Preenchido ao reservar"
+    },
+    {
+      "key": "ticketCode",
+      "value": "",
+      "description": "Preenchido ao listar ingressos"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "",
+      "description": "Gerada por requisição"
+    },
+    {
+      "key": "papelAtual",
+      "value": "",
+      "description": "Papel autenticado no momento"
+    },
+    {
+      "key": "meuEventoId",
+      "value": "",
+      "description": "Evento criado pela própria coleção"
+    },
+    {
+      "key": "novaData",
+      "value": "",
+      "description": "Data gerada para o evento de exemplo"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticação",
+      "description": "Cadastro público cria apenas CUSTOMER. Organizador e portaria vêm do seed.",
+      "item": [
+        {
+          "name": "Login (cliente)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Guarda a sessão nas variáveis da coleção.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"cliente1@verzel.test\",\n  \"password\": \"cliente123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "const sessao = corpo.session ?? corpo;",
+                  "",
+                  "if (sessao.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "  console.log('Sessão salva. Expira em', sessao.expiresIn, 'segundos.');",
+                  "}",
+                  "",
+                  "pm.test('login bem-sucedido', () => pm.response.to.have.status(pm.response.code));",
+                  "pm.collectionVariables.set('papelAtual', 'CUSTOMER');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (organizador)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Necessário para catálogo e gestão de eventos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"organizador@verzel.test\",\n  \"password\": \"organizador123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "const sessao = corpo.session ?? corpo;",
+                  "",
+                  "if (sessao.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "  console.log('Sessão salva. Expira em', sessao.expiresIn, 'segundos.');",
+                  "}",
+                  "",
+                  "pm.test('login bem-sucedido', () => pm.response.to.have.status(pm.response.code));",
+                  "pm.collectionVariables.set('papelAtual', 'ORGANIZER');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (portaria)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Necessário para validar ingresso.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"portaria@verzel.test\",\n  \"password\": \"portaria123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "const sessao = corpo.session ?? corpo;",
+                  "",
+                  "if (sessao.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "  console.log('Sessão salva. Expira em', sessao.expiresIn, 'segundos.');",
+                  "}",
+                  "",
+                  "pm.test('login bem-sucedido', () => pm.response.to.have.status(pm.response.code));",
+                  "pm.collectionVariables.set('papelAtual', 'GATE');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cadastrar cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "O campo `role` é ignorado: cadastro público cria só CUSTOMER.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pessoa Nova\",\n  \"email\": \"nova@example.com\",\n  \"password\": \"senha-de-teste-123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "const sessao = corpo.session ?? corpo;",
+                  "",
+                  "if (sessao.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "  console.log('Sessão salva. Expira em', sessao.expiresIn, 'segundos.');",
+                  "}",
+                  "",
+                  "pm.test('login bem-sucedido', () => pm.response.to.have.status(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Meu perfil",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Perfil de quem apresenta o token."
+          }
+        },
+        {
+          "name": "Renovar sessão",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Troca o par de tokens. O antigo deixa de valer; reapresentá-lo derruba TODAS as sessões.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "const sessao = corpo.session ?? corpo;",
+                  "",
+                  "if (sessao.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "  console.log('Sessão salva. Expira em', sessao.expiresIn, 'segundos.');",
+                  "}",
+                  "",
+                  "pm.test('login bem-sucedido', () => pm.response.to.have.status(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sair",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revoga apenas a sessão apresentada.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Catálogo (organizador)",
+      "item": [
+        {
+          "name": "Buscar no catálogo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/catalog/search?query=rock&page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "catalog",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "rock"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Agrega TMDb e Ticketmaster. Sem chave configurada, responde 200 com lista vazia."
+          }
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Garante o papel ORGANIZER antes de qualquer requisição desta pasta,",
+              "// para a coleção rodar inteira no Collection Runner sem intervenção.",
+              "if (pm.collectionVariables.get('papelAtual') !== 'ORGANIZER') {",
+              "  pm.sendRequest({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json' },",
+              "    body: { mode: 'raw', raw: JSON.stringify({",
+              "      email: 'organizador@verzel.test', password: 'organizador123'",
+              "    }) }",
+              "  }, (erro, resposta) => {",
+              "    if (erro) { console.error('login automático falhou', erro); return; }",
+              "    const sessao = resposta.json().session;",
+              "    pm.collectionVariables.set('accessToken', sessao.accessToken);",
+              "    pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+              "    pm.collectionVariables.set('papelAtual', 'ORGANIZER');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Eventos",
+      "item": [
+        {
+          "name": "Listar publicados (público)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events?skip=0&take=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "banda",
+                  "disabled": true
+                },
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "take",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Só eventos PUBLISHED.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "if (corpo.items?.length) {",
+                  "  pm.collectionVariables.set('eventId', corpo.items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalhe (público)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventId}}"
+              ]
+            },
+            "description": "Traz `availableSeatsCount`.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Mapa de assentos (público)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}/seats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventId}}",
+                "seats"
+              ]
+            },
+            "description": "De onde sai o `seatId` que a reserva exige.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "const livre = corpo.items?.find((assento) => assento.available);",
+                  "if (livre) {",
+                  "  pm.collectionVariables.set('seatId', livre.id);",
+                  "  console.log('Assento livre escolhido:', livre.label);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Meus eventos (organizador)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/mine?skip=0&take=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "take",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Rascunhos e cancelados inclusive."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Garante o papel ORGANIZER antes de qualquer requisição desta pasta,",
+                  "// para a coleção rodar inteira no Collection Runner sem intervenção.",
+                  "if (pm.collectionVariables.get('papelAtual') !== 'ORGANIZER') {",
+                  "  pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json' },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({",
+                  "      email: 'organizador@verzel.test', password: 'organizador123'",
+                  "    }) }",
+                  "  }, (erro, resposta) => {",
+                  "    if (erro) { console.error('login automático falhou', erro); return; }",
+                  "    const sessao = resposta.json().session;",
+                  "    pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "    pm.collectionVariables.set('papelAtual', 'ORGANIZER');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar evento (organizador)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ]
+            },
+            "description": "Nasce DRAFT, com o mapa de assentos criado junto.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"externalId\": \"550\",\n  \"sourceType\": \"MOVIE\",\n  \"title\": \"Clube da Luta — Sessão\",\n  \"description\": \"Sessão de estreia\",\n  \"imageUrl\": \"https://image.tmdb.org/t/p/w500/exemplo.jpg\",\n  \"date\": \"{{novaData}}\",\n  \"venue\": \"Cine Arena\",\n  \"capacity\": 30,\n  \"price\": 45\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// O mesmo organizador não repete o mesmo item de catálogo na mesma",
+                  "// data — a API responde 409. Uma data nova por execução evita o",
+                  "// conflito com o evento do seed e com execuções anteriores.",
+                  "const daquiADias = 60 + Math.floor(Math.random() * 300);",
+                  "const data = new Date(Date.now() + daquiADias * 24 * 60 * 60 * 1000);",
+                  "data.setUTCHours(21, 0, 0, 0);",
+                  "pm.collectionVariables.set('novaData', data.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Garante o papel ORGANIZER antes de qualquer requisição desta pasta,",
+                  "// para a coleção rodar inteira no Collection Runner sem intervenção.",
+                  "if (pm.collectionVariables.get('papelAtual') !== 'ORGANIZER') {",
+                  "  pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json' },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({",
+                  "      email: 'organizador@verzel.test', password: 'organizador123'",
+                  "    }) }",
+                  "  }, (erro, resposta) => {",
+                  "    if (erro) { console.error('login automático falhou', erro); return; }",
+                  "    const sessao = resposta.json().session;",
+                  "    pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "    pm.collectionVariables.set('papelAtual', 'ORGANIZER');",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "// Guarda em variável própria: as rotas de publicar e cancelar",
+                  "// operam sobre o evento que esta coleção criou, nunca sobre o",
+                  "// evento do seed que as rotas públicas usam",
+                  "if (corpo.id) pm.collectionVariables.set('meuEventoId', corpo.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Editar evento (organizador)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{meuEventoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{meuEventoId}}"
+              ]
+            },
+            "description": "Capacidade só muda enquanto DRAFT.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"venue\": \"Outro Local\",\n  \"price\": 55\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Garante o papel ORGANIZER antes de qualquer requisição desta pasta,",
+                  "// para a coleção rodar inteira no Collection Runner sem intervenção.",
+                  "if (pm.collectionVariables.get('papelAtual') !== 'ORGANIZER') {",
+                  "  pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json' },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({",
+                  "      email: 'organizador@verzel.test', password: 'organizador123'",
+                  "    }) }",
+                  "  }, (erro, resposta) => {",
+                  "    if (erro) { console.error('login automático falhou', erro); return; }",
+                  "    const sessao = resposta.json().session;",
+                  "    pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "    pm.collectionVariables.set('papelAtual', 'ORGANIZER');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publicar (organizador)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{meuEventoId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{meuEventoId}}",
+                "publish"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Garante o papel ORGANIZER antes de qualquer requisição desta pasta,",
+                  "// para a coleção rodar inteira no Collection Runner sem intervenção.",
+                  "if (pm.collectionVariables.get('papelAtual') !== 'ORGANIZER') {",
+                  "  pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json' },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({",
+                  "      email: 'organizador@verzel.test', password: 'organizador123'",
+                  "    }) }",
+                  "  }, (erro, resposta) => {",
+                  "    if (erro) { console.error('login automático falhou', erro); return; }",
+                  "    const sessao = resposta.json().session;",
+                  "    pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "    pm.collectionVariables.set('papelAtual', 'ORGANIZER');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar (organizador)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{meuEventoId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{meuEventoId}}",
+                "cancel"
+              ]
+            },
+            "description": "Estado final: não volta a ser publicado."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Garante o papel ORGANIZER antes de qualquer requisição desta pasta,",
+                  "// para a coleção rodar inteira no Collection Runner sem intervenção.",
+                  "if (pm.collectionVariables.get('papelAtual') !== 'ORGANIZER') {",
+                  "  pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json' },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({",
+                  "      email: 'organizador@verzel.test', password: 'organizador123'",
+                  "    }) }",
+                  "  }, (erro, resposta) => {",
+                  "    if (erro) { console.error('login automático falhou', erro); return; }",
+                  "    const sessao = resposta.json().session;",
+                  "    pm.collectionVariables.set('accessToken', sessao.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+                  "    pm.collectionVariables.set('papelAtual', 'ORGANIZER');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Reserva e pagamento (cliente)",
+      "item": [
+        {
+          "name": "Reservar assento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventId}}",
+                "reservations"
+              ]
+            },
+            "description": "Protegida por lock no Redis e constraint no banco. Assento ocupado responde 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seatId\": \"{{seatId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Uma Idempotency-Key por intenção. Repetir a chave com um corpo",
+                  "// diferente responde 409 de propósito.",
+                  "pm.collectionVariables.set('idempotencyKey', crypto.randomUUID());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "if (corpo.id) pm.collectionVariables.set('reservationId', corpo.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Minhas reservas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/mine?skip=0&take=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "take",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Pagar (recusado)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}/payment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                "{{reservationId}}",
+                "payment"
+              ]
+            },
+            "description": "Deixa a reserva PENDING para nova tentativa.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"CREDIT_CARD\",\n  \"simulate\": \"REFUSED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Uma Idempotency-Key por intenção. Repetir a chave com um corpo",
+                  "// diferente responde 409 de propósito.",
+                  "pm.collectionVariables.set('idempotencyKey', crypto.randomUUID());"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagar (aprovado)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}/payment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                "{{reservationId}}",
+                "payment"
+              ]
+            },
+            "description": "Confirma a reserva e emite o ingresso na mesma transação.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"PIX\",\n  \"simulate\": \"APPROVED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Uma Idempotency-Key por intenção. Repetir a chave com um corpo",
+                  "// diferente responde 409 de propósito.",
+                  "pm.collectionVariables.set('idempotencyKey', crypto.randomUUID());"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar reserva",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                "{{reservationId}}"
+              ]
+            },
+            "description": "Só reserva PENDING. Libera o assento."
+          }
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Garante o papel CUSTOMER antes de qualquer requisição desta pasta,",
+              "// para a coleção rodar inteira no Collection Runner sem intervenção.",
+              "if (pm.collectionVariables.get('papelAtual') !== 'CUSTOMER') {",
+              "  pm.sendRequest({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json' },",
+              "    body: { mode: 'raw', raw: JSON.stringify({",
+              "      email: 'cliente1@verzel.test', password: 'cliente123'",
+              "    }) }",
+              "  }, (erro, resposta) => {",
+              "    if (erro) { console.error('login automático falhou', erro); return; }",
+              "    const sessao = resposta.json().session;",
+              "    pm.collectionVariables.set('accessToken', sessao.accessToken);",
+              "    pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+              "    pm.collectionVariables.set('papelAtual', 'CUSTOMER');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Ingressos (cliente)",
+      "item": [
+        {
+          "name": "Meus ingressos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/mine?skip=0&take=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "take",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Traz `qrContent` assinado e `shareUrl`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.json();",
+                  "if (corpo.items?.length) {",
+                  "  pm.collectionVariables.set('ticketCode', corpo.items[0].code);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ingresso por código (público)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketCode}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tickets",
+                "{{ticketCode}}"
+              ]
+            },
+            "description": "É o link de compartilhamento. Não traz dados do comprador.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Garante o papel CUSTOMER antes de qualquer requisição desta pasta,",
+              "// para a coleção rodar inteira no Collection Runner sem intervenção.",
+              "if (pm.collectionVariables.get('papelAtual') !== 'CUSTOMER') {",
+              "  pm.sendRequest({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json' },",
+              "    body: { mode: 'raw', raw: JSON.stringify({",
+              "      email: 'cliente1@verzel.test', password: 'cliente123'",
+              "    }) }",
+              "  }, (erro, resposta) => {",
+              "    if (erro) { console.error('login automático falhou', erro); return; }",
+              "    const sessao = resposta.json().session;",
+              "    pm.collectionVariables.set('accessToken', sessao.accessToken);",
+              "    pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+              "    pm.collectionVariables.set('papelAtual', 'CUSTOMER');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Portaria",
+      "item": [
+        {
+          "name": "Validar por código",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/gate/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "gate",
+                "validate"
+              ]
+            },
+            "description": "Sempre 200. Resultado em `result`: VALID, INVALID, ALREADY_USED ou WRONG_EVENT.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{ticketCode}}\",\n  \"eventId\": \"{{eventId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Validar por QR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/gate/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "gate",
+                "validate"
+              ]
+            },
+            "description": "Assinatura conferida antes de qualquer consulta ao banco.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrContent\": \"cole-aqui-o-qrContent-do-ingresso\",\n  \"eventId\": \"{{eventId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Consultar sem marcar uso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gate/tickets/{{ticketCode}}?eventId={{eventId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "gate",
+                "tickets",
+                "{{ticketCode}}"
+              ],
+              "query": [
+                {
+                  "key": "eventId",
+                  "value": "{{eventId}}"
+                }
+              ]
+            },
+            "description": "Mesmas regras da validação, sem consumir o ingresso."
+          }
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Garante o papel GATE antes de qualquer requisição desta pasta,",
+              "// para a coleção rodar inteira no Collection Runner sem intervenção.",
+              "if (pm.collectionVariables.get('papelAtual') !== 'GATE') {",
+              "  pm.sendRequest({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json' },",
+              "    body: { mode: 'raw', raw: JSON.stringify({",
+              "      email: 'portaria@verzel.test', password: 'portaria123'",
+              "    }) }",
+              "  }, (erro, resposta) => {",
+              "    if (erro) { console.error('login automático falhou', erro); return; }",
+              "    const sessao = resposta.json().session;",
+              "    pm.collectionVariables.set('accessToken', sessao.accessToken);",
+              "    pm.collectionVariables.set('refreshToken', sessao.refreshToken);",
+              "    pm.collectionVariables.set('papelAtual', 'GATE');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Saúde e documentação",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "200 ok/degraded, 503 error. Redis fora = degraded, e o sistema segue.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "OpenAPI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/docs.json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "docs.json"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

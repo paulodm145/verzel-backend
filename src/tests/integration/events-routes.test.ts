@@ -255,6 +255,17 @@ describe("rotas públicas", () => {
     expect(response.body).toMatchObject({ total: 2, skip: 0, take: 1 });
   });
 
+  it("trata busca vazia como ausência de filtro", async () => {
+    await publicar();
+    await publicar({ externalId: "551", title: "Matrix" });
+
+    // É o que um campo de texto manda quando o usuário limpa o que digitou
+    const response = await request(app).get("/events?search=&skip=0&take=20");
+
+    expect(response.status).toBe(200);
+    expect(response.body.total).toBe(2);
+  });
+
   it("filtra por termo de busca", async () => {
     await publicar();
     await publicar({ externalId: "551", title: "Matrix" });

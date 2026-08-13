@@ -167,6 +167,30 @@ gratuita durante uma avaliação.
 Uma vez criado, o evento guarda os dados já normalizados: servi-lo **nunca**
 chama a API externa de novo.
 
+### Documentação para quem consome a API
+
+| Onde | O que é |
+| --- | --- |
+| `http://localhost:3000/docs` | Swagger UI, gerado dos mesmos schemas Zod que validam a entrada |
+| `http://localhost:3000/docs.json` | OpenAPI 3.0, serve para gerar tipos ou client |
+| [`doc-frontend/`](doc-frontend/) | Guia de integração em markdown, pensado para ser copiado para dentro do projeto de frontend |
+| [`doc-frontend/postman/`](doc-frontend/postman/) | **Coleção do Postman**, com 28 requisições cobrindo todos os endpoints |
+
+A coleção do Postman se autoconfigura: o login guarda os tokens, cada pasta
+autentica com o papel certo, e as variáveis (`eventId`, `seatId`,
+`reservationId`, `ticketCode`) são preenchidas pelas respostas anteriores. Dá
+para rodar a coleção inteira no Collection Runner e percorrer o sistema do
+cadastro à validação na portaria sem digitar nada.
+
+Importar: **Postman → Import** → arraste
+`doc-frontend/postman/verzel-api.postman_collection.json` e
+`verzel-local.postman_environment.json`. Funciona também no Insomnia e no Bruno.
+
+O guia em `doc-frontend/` cobre payloads, retornos, os quatro resultados da
+portaria, o uso correto de `Idempotency-Key` e as armadilhas de integração — em
+especial a renovação de sessão concorrente, que derruba o usuário se o frontend
+disparar duas ao mesmo tempo.
+
 ### Frontend em outra origem
 
 A API responde CORS para as origens listadas em `CORS_ORIGINS` (padrão:

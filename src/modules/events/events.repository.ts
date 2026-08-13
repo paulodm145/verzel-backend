@@ -1,6 +1,32 @@
 import type { PrismaClient } from "../../generated/prisma/client.js";
 import type { EventStatus, SourceType } from "../../generated/prisma/enums.js";
+import { ConflictError } from "../../shared/errors/index.js";
 import { prisma as sharedPrisma } from "../../shared/lib/prisma.js";
+
+/** Código do Prisma para violação de unique constraint. */
+const UNIQUE_VIOLATION = "P2002";
+
+/**
+ * O mesmo organizador não repete o mesmo item de catálogo na mesma data. Sem
+ * traduzir, a violação subia como 500 — o organizador que clicasse duas vezes
+ * em "criar" via erro interno em vez de saber que o evento já existe.
+ */
+function translateDuplicate<T>(operation: Promise<T>): Promise<T> {
+  return operation.catch((error: unknown) => {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === UNIQUE_VIOLATION
+    ) {
+      throw new ConflictError(
+        "Você já tem um evento com este item de catálogo nesta data",
+      );
+    }
+
+    throw error;
+  });
+}
 
 export interface EventRecord {
   readonly id: string;
@@ -110,7 +136,8 @@ export function createEventsRepository(
      * deixaria um evento impossível de reservar (RN-7).
      */
     async create(event) {
-      return prisma.$transaction(async (transaction) => {
+      return translateDuplicate(
+        prisma.$transaction(async (transaction) => {
         const created = await transaction.event.create({
           data: {
             organizerId: event.organizerId,
@@ -130,8 +157,9 @@ export function createEventsRepository(
           data: seatRows(created.id, event.capacity),
         });
 
-        return created;
-      });
+          return created;
+        }),
+      );
     },
 
     findById(id) {
@@ -139,7 +167,9 @@ export function createEventsRepository(
     },
 
     update(id, changes) {
-      return prisma.event.update({ where: { id }, data: changes });
+      return translateDuplicate(
+        prisma.event.update({ where: { id }, data: changes }),
+      );
     },
 
     async replaceSeats(eventId, capacity) {
