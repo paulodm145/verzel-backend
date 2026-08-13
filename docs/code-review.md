@@ -246,6 +246,39 @@ Registrado para responder à pergunta se ela vier na avaliação.
 
 ---
 
+## Achado posterior — 16. Todas as recusas de 401 diziam a mesma coisa
+
+**Onde:** `src/shared/middlewares/authenticate.ts`.
+
+**Como apareceu:** não pela revisão, e sim pelo uso. Uma sessão de Swagger
+travada em `401 Autenticação obrigatória` custou tempo até ficar claro que a
+causa era o esquema `Bearer` digitado no campo que já o acrescenta — o
+cabeçalho virava `Bearer Bearer <token>`.
+
+**Por que importava:** as quatro recusas — cabeçalho ausente, formato errado,
+assinatura inválida e token expirado — respondiam com a mesma mensagem. A
+intenção era não ajudar quem sonda, mas duas delas não revelam nada: quem
+chamou já sabe o que enviou.
+
+**O que foi feito:** as mensagens passam a vir em dois grupos. Forma da
+requisição (ausente, sem o esquema, `Bearer` repetido) responde
+especificamente; validade do token (adulterado, outra chave, expirado) continua
+com uma **única** mensagem, que é onde a indistinção protege de fato.
+
+Verificado no servidor real:
+
+```
+sem cabeçalho:          Autenticação obrigatória: envie o cabeçalho Authorization
+sem o esquema Bearer:   Formato inválido do cabeçalho Authorization: use "Bearer <token>"
+Bearer repetido:        O valor do token não deve repetir "Bearer": envie apenas o token
+token adulterado:       Sessão inválida ou expirada
+token de outra chave:   Sessão inválida ou expirada
+```
+
+Fica o registro de que revisão de código e uso real encontram coisas
+diferentes: este item passou por uma revisão inteira sem ser notado, e apareceu
+no primeiro contato com a interface.
+
 ## O que a revisão **não** encontrou
 
 Vale registrar, porque foi verificado e está correto:

@@ -104,16 +104,61 @@ describe("authenticate", () => {
     expect(response.status).toBe(401);
   });
 
-  it("responde igual para token ausente, expirado e adulterado", async () => {
-    const semToken = await request(app).get("/protegida");
-    const adulterado = await request(app)
-      .get("/protegida")
-      .set("authorization", "Bearer não-é-token");
+  it("responde igual para expirado, adulterado e assinado com outra chave", async () => {
+    const expirado = await new SignJWT({ role: "CUSTOMER" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject(userId)
+      .setIssuer("verzel-backend")
+      .setExpirationTime(Math.floor(Date.now() / 1000) - 60)
+      .sign(new TextEncoder().encode(process.env.JWT_SECRET ?? ""));
+    const outraChave = await new SignJWT({ role: "GATE" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject(userId)
+      .setIssuer("verzel-backend")
+      .setExpirationTime("15m")
+      .sign(new TextEncoder().encode("outro-segredo-com-mais-de-32-caracteres"));
 
-    expect(adulterado.body.error).toMatchObject({
-      code: semToken.body.error.code,
-      message: semToken.body.error.message,
-    });
+    const respostas = await Promise.all(
+      [expirado, outraChave, "não-é-token"].map((token) =>
+        request(app).get("/protegida").set("authorization", `Bearer ${token}`),
+      ),
+    );
+
+    // As três dizem respeito à validade do token: distinguir revelaria a quem
+    // sonda se o palpite chegou perto de ser aceito
+    const mensagens = new Set(
+      respostas.map((resposta) => resposta.body.error.message as string),
+    );
+    expect(mensagens.size).toBe(1);
+  });
+
+  it("distingue cabeçalho ausente de cabeçalho malformado", async () => {
+    const semCabecalho = await request(app).get("/protegida");
+    const semEsquema = await request(app)
+      .get("/protegida")
+      .set("authorization", "eyJhbGciOiJIUzI1NiJ9.abc.def");
+
+    // Ambos 401, com mensagens diferentes: quem chamou já sabe o que mandou, e
+    // esconder isso só custa tempo de quem está integrando
+    expect(semCabecalho.status).toBe(401);
+    expect(semEsquema.status).toBe(401);
+    expect(semCabecalho.body.error.message).toMatch(/cabeçalho Authorization/i);
+    expect(semEsquema.body.error.message).toMatch(/Bearer/);
+    expect(semEsquema.body.error.message).not.toBe(
+      semCabecalho.body.error.message,
+    );
+  });
+
+  it("aponta o formato quando alguém repete a palavra Bearer", async () => {
+    const { token } = await issueAccessToken({ userId, role: "CUSTOMER" });
+
+    // O erro clássico de colar "Bearer <token>" no campo Authorize do Swagger
+    const response = await request(app)
+      .get("/protegida")
+      .set("authorization", `Bearer Bearer ${token}`);
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.message).toMatch(/não deve repetir/);
   });
 });
 

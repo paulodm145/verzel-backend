@@ -22,9 +22,15 @@ const BEARER = /^Bearer (.+)$/;
 /**
  * Identifica o solicitante a partir do cabeçalho `Authorization`.
  *
- * Ausência de cabeçalho, formato errado, assinatura inválida e token expirado
- * terminam todos em 401 com a mesma mensagem: dizer qual dos quatro foi só
- * ajudaria quem está sondando (RN-8).
+ * As quatro recusas respondem 401, mas em dois grupos de mensagem:
+ *
+ * - **Forma da requisição** — cabeçalho ausente ou fora do formato `Bearer
+ *   <token>`. Aqui a mensagem é específica, porque não revela nada: quem chamou
+ *   já sabe o que mandou. Mensagens genéricas neste ponto custam horas de
+ *   depuração a quem está integrando, e foi o que aconteceu na prática.
+ * - **Validade do token** — assinatura inválida, chave errada ou expirado.
+ *   Estas três respondem **exatamente igual**, porque distinguir revelaria a
+ *   quem sonda se um token forjado chegou perto de ser aceito (RN-8).
  */
 export const authenticate: RequestHandler = (
   request: Request,
@@ -32,11 +38,39 @@ export const authenticate: RequestHandler = (
   next: NextFunction,
 ): void => {
   const header = request.get("authorization");
-  const match = header ? BEARER.exec(header) : null;
-  const token = match?.[1];
+
+  if (!header) {
+    next(
+      new UnauthorizedError(
+        "Autenticação obrigatória: envie o cabeçalho Authorization",
+      ),
+    );
+
+    return;
+  }
+
+  const token = BEARER.exec(header)?.[1];
 
   if (!token) {
-    next(new UnauthorizedError("Autenticação obrigatória"));
+    next(
+      new UnauthorizedError(
+        'Formato inválido do cabeçalho Authorization: use "Bearer <token>"',
+      ),
+    );
+
+    return;
+  }
+
+  // "Bearer Bearer <token>" é o erro clássico de quem digita o esquema no campo
+  // do Swagger, que já o acrescenta sozinho. Dizer isso não revela nada sobre
+  // token nenhum — é a forma do que foi enviado
+  if (BEARER.test(token)) {
+    next(
+      new UnauthorizedError(
+        'O valor do token não deve repetir "Bearer": envie apenas o token',
+      ),
+    );
+
     return;
   }
 
@@ -46,7 +80,8 @@ export const authenticate: RequestHandler = (
       next();
     })
     .catch(() => {
-      next(new UnauthorizedError("Autenticação obrigatória"));
+      // Uma única mensagem para inválido, adulterado e expirado
+      next(new UnauthorizedError("Sessão inválida ou expirada"));
     });
 };
 
