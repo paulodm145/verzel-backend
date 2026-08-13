@@ -38,6 +38,8 @@ export const ticketSchema = publicTicketSchema.extend({
 export const ticketListSchema = z.object({
   items: z.array(ticketSchema),
   total: z.number().int().nonnegative(),
+  skip: z.number().int().nonnegative(),
+  take: z.number().int().positive(),
 });
 
 export type TicketOutput = z.infer<typeof ticketSchema>;

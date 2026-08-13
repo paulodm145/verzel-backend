@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type RequestHandler } from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -21,7 +21,17 @@ beforeEach(() => {
   app = express();
   app.use(requestId);
   app.use(express.json());
-  app.use(createAuthRouter(createAuthService(createFakeAuthRepository())));
+  // Sem limitador: este arquivo exercita a regra de autenticação, e cadastra
+  // várias contas do mesmo IP em sequência. O limitador tem teste próprio.
+  const semLimite: RequestHandler = (_request, _response, next) => {
+    next();
+  };
+  app.use(
+    createAuthRouter(createAuthService(createFakeAuthRepository()), {
+      loginLimiter: semLimite,
+      registerLimiter: semLimite,
+    }),
+  );
   app.use(notFoundHandler);
   app.use(errorHandler);
 });

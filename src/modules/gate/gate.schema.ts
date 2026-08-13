@@ -19,6 +19,10 @@ export const gateTicketCodeSchema = z.object({
   code: z.string().trim().toUpperCase().min(4).max(40),
 });
 
+export const gateInspectQuerySchema = z.object({
+  eventId: z.uuid().optional(),
+});
+
 export const validationResultSchema = z.object({
   result: z.enum(["VALID", "INVALID", "ALREADY_USED", "WRONG_EVENT"]),
   /** Em português: vai direto para a tela de quem está na porta. */

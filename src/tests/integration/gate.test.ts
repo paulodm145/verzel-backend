@@ -319,4 +319,34 @@ describe("GET /gate/tickets/:code", () => {
 
     expect(response.status).toBe(404);
   });
+
+  it("aponta evento errado na consulta, como a validação faria", async () => {
+    const assentoDoOutro = await prisma.seat.findFirstOrThrow({
+      where: { eventId: outroEventoId },
+    });
+    const ticket = await comprarIngresso(assentoDoOutro.id, outroEventoId);
+
+    const response = await request(app)
+      .get(`/gate/tickets/${ticket.code}?eventId=${eventId}`)
+      .set("authorization", await bearer(portaria));
+
+    // Antes, a consulta dizia VALID e a validação seguinte dizia WRONG_EVENT:
+    // duas respostas para o mesmo ingresso, no mesmo balcão
+    expect(response.body.result).toBe("WRONG_EVENT");
+  });
+
+  it("aponta evento cancelado na consulta", async () => {
+    const ticket = await comprarIngresso(seats[0] ?? "");
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { status: "CANCELED" },
+    });
+
+    const response = await request(app)
+      .get(`/gate/tickets/${ticket.code}?eventId=${eventId}`)
+      .set("authorization", await bearer(portaria));
+
+    expect(response.body.result).toBe("INVALID");
+    expect(response.body.message).toContain("cancelado");
+  });
 });

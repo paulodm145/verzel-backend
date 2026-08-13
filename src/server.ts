@@ -1,6 +1,7 @@
 import { createApp } from "./app.js";
 import { getEnv } from "./shared/config/index.js";
 import { getLogger } from "./shared/lib/logger.js";
+import { scheduleHousekeeping } from "./shared/lib/housekeeping.js";
 import { disconnectPrisma } from "./shared/lib/prisma.js";
 import { disconnectRedis } from "./shared/lib/redis.js";
 
@@ -12,6 +13,11 @@ const logger = getLogger();
 const server = createApp().listen(env.PORT, () => {
   logger.info({ port: env.PORT, env: env.NODE_ENV }, "servidor no ar");
 });
+
+// Limpeza de reservas vencidas e tokens antigos. Não é o que garante correção
+// — a expiração preguiçosa da reserva continua fazendo isso no instante da
+// disputa —, é o que impede o acúmulo de lixo no banco
+scheduleHousekeeping(env.HOUSEKEEPING_INTERVAL * 1000);
 
 // Prazo do desligamento gracioso. Uma requisição pendurada segura o
 // `server.close()` indefinidamente, e sem prazo o processo só morreria pelo
