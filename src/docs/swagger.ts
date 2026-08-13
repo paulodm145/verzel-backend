@@ -13,6 +13,9 @@ import {
   catalogSearchResponseSchema,
 } from "../modules/catalog/catalog.schema.js";
 import {
+  seatMapSchema,
+} from "../modules/events/events.schema.js";
+import {
   createEventSchema,
   eventDetailSchema,
   eventListSchema,
@@ -84,6 +87,7 @@ export const schemaRegistry: Record<string, RegisteredSchema> = {
   Event: { schema: eventSchema, io: "output" },
   EventDetail: { schema: eventDetailSchema, io: "output" },
   EventList: { schema: eventListSchema, io: "output" },
+  SeatMap: { schema: seatMapSchema, io: "output" },
   CreateReservationRequest: { schema: createReservationSchema, io: "input" },
   Reservation: { schema: reservationSchema, io: "output" },
   ReservationList: { schema: reservationListSchema, io: "output" },
@@ -402,6 +406,21 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             "200": { description: "Evento atualizado", content: jsonContent("Event") },
             "403": { description: "Evento de outro organizador", content: jsonContent("ErrorResponse") },
             "409": { description: "Capacidade em evento publicado, ou evento cancelado", content: jsonContent("ErrorResponse") },
+          },
+        },
+      },
+      "/events/{id}/seats": {
+        get: {
+          tags: ["Eventos"],
+          summary: "Mapa de assentos do evento",
+          description:
+            "Pública. Cada assento vem com `id`, rótulo e disponibilidade — o " +
+            "`id` é o que a reserva exige. Disponível é o assento sem reserva " +
+            "ativa; não há coluna de estado em Seat (ADR 0002).",
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          responses: {
+            "200": { description: "Mapa de assentos", content: jsonContent("SeatMap") },
+            "404": { description: "Inexistente ou não publicado", content: jsonContent("ErrorResponse") },
           },
         },
       },

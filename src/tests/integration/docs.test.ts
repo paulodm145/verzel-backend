@@ -138,6 +138,15 @@ describe("documentação OpenAPI", () => {
     expect(response.body.paths["/tickets/{code}"].get.security).toBeUndefined();
   });
 
+  it("documenta o mapa de assentos, que a tela de compra consome", async () => {
+    const response = await request(app).get("/docs.json");
+
+    expect(response.body.paths).toHaveProperty("/events/{id}/seats");
+    expect(
+      response.body.paths["/events/{id}/seats"].get.security,
+    ).toBeUndefined();
+  });
+
   it("documenta as rotas de portaria", async () => {
     const response = await request(app).get("/docs.json");
 

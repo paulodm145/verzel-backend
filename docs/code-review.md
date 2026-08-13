@@ -4,22 +4,28 @@ Revisão dos sete épicos já mergeados na `main`, em 2026-08-12. Cada item traz
 **onde**, **por que importa** e **o que fazer**, na ordem em que devem ser
 atacados.
 
+> **Situação em 2026-08-13:** os treze itens acionáveis foram corrigidos na
+> branch `fix/0008-revisao`, cada um com o teste que prova a correção. Os itens
+> 14 e 15 permanecem como decisão consciente, e não como pendência. O texto
+> original de cada item foi mantido — riscar o diagnóstico apagaria o motivo de
+> a correção existir.
+
 Contexto que orienta a priorização: o frontend ainda será construído, e o prazo
 é curto. Os itens P0 bloqueiam o frontend; os P1 são falhas reais de
 comportamento; P2 e P3 são qualidade e podem ficar de fora se o tempo apertar.
 
-| Prioridade | Itens | Custo estimado |
+| Prioridade | Itens | Situação |
 | --- | --- | --- |
-| P0 — bloqueia o frontend | 2 | ~1h |
-| P1 — falha real | 4 | ~2h |
-| P2 — consistência e robustez | 5 | ~2h |
-| P3 — polimento | 4 | opcional |
+| P0 — bloqueia o frontend | 2 | ✅ corrigidos |
+| P1 — falha real | 4 | ✅ corrigidos |
+| P2 — consistência e robustez | 5 | ✅ corrigidos |
+| P3 — polimento | 4 | ✅ 2 corrigidos · ➖ 2 mantidos por decisão |
 
 ---
 
 ## P0 — Bloqueia o frontend
 
-### 1. Não existe endpoint para listar os assentos de um evento
+### ✅ 1. Não existe endpoint para listar os assentos de um evento
 
 **Onde:** `src/modules/events/events.routes.ts` — nenhuma rota expõe assentos;
 `events.service.ts:195` (`detail`) devolve apenas `availableSeatsCount`.
@@ -47,7 +53,7 @@ Sugestão de contrato:
 { "items": [ { "id": "uuid", "label": "A1", "available": true } ], "total": 30 }
 ```
 
-### 2. CORS não está configurado
+### ✅ 2. CORS não está configurado
 
 **Onde:** `src/app.ts:29` — a aplicação monta `express.json` e nada de CORS.
 
@@ -67,7 +73,7 @@ frontend lê.
 
 ## P1 — Falhas reais de comportamento
 
-### 3. Dá para pagar reserva de evento cancelado
+### ✅ 3. Dá para pagar reserva de evento cancelado
 
 **Onde:** `src/modules/payments/payments.service.ts:32` — o `pay` valida dono,
 status da reserva e prazo, mas **nunca consulta o evento**.
@@ -86,7 +92,7 @@ nova ao schema.
 **Teste que falta:** pagar reserva de evento cancelado responde 409 e não emite
 ingresso.
 
-### 4. Logout revoga token de sessão alheia
+### ✅ 4. Logout revoga token de sessão alheia
 
 **Onde:** `src/modules/auth/auth.service.ts:168` — `logout` busca o token pelo
 hash e revoga, **sem comparar** o `userId` do token com o do solicitante.
@@ -101,7 +107,7 @@ a ausência aqui é inconsistência, não escolha.
 silenciosamente (ou 403) quando o token pertencer a outro usuário. Manter o
 silêncio para token inexistente, que é comportamento correto e já testado.
 
-### 5. Mudança de capacidade não é atômica com a troca do mapa
+### ✅ 5. Mudança de capacidade não é atômica com a troca do mapa
 
 **Onde:** `src/modules/events/events.service.ts:139` — `repository.update`
 grava a capacidade nova e, **depois**, `replaceSeats` recria os assentos, em
@@ -117,7 +123,7 @@ a edição ficou de fora.
 repositório — algo como `updateWithSeats(eventId, changes, capacity)`. O
 `replaceSeats` já roda em transação; falta unir com o `update`.
 
-### 6. Idempotency-Key não considera o corpo da requisição
+### ✅ 6. Idempotency-Key não considera o corpo da requisição
 
 **Onde:** `src/shared/middlewares/idempotency.ts:38` — a chave de
 armazenamento é `idempotency:{escopo}:{usuário}:{chave}`, sem nada do payload.
@@ -138,7 +144,7 @@ igual reproduz (comportamento atual); chave igual com corpo diferente responde
 
 ## P2 — Consistência e robustez
 
-### 7. `GET /gate/tickets/:code` ignora evento cancelado e evento errado
+### ✅ 7. `GET /gate/tickets/:code` ignora evento cancelado e evento errado
 
 **Onde:** `src/modules/gate/gate.service.ts:107` — o `inspect` só olha
 `ticket.status`, enquanto o `validate` distingue os quatro resultados.
@@ -152,7 +158,7 @@ no mesmo balcão.
 regras do `validate`, sem marcar uso. Extrair a decisão para uma função pura
 compartilhada pelos dois caminhos.
 
-### 8. Listas de reservas e ingressos não devolvem a paginação
+### ✅ 8. Listas de reservas e ingressos não devolvem a paginação
 
 **Onde:** `src/modules/reservations/reservations.routes.ts:77` e
 `src/modules/tickets/tickets.routes.ts:23` devolvem `{ items, total }`,
@@ -164,7 +170,7 @@ condicional do lado do cliente para nada.
 
 **O que fazer:** uniformizar os três, ecoando `skip` e `take`.
 
-### 9. Login sem proteção contra força bruta
+### ✅ 9. Login sem proteção contra força bruta
 
 **Onde:** `src/modules/auth/auth.routes.ts` — nenhuma limitação de tentativas.
 
@@ -176,7 +182,7 @@ públicas (documentadas no README), a demonstração fica trivialmente atacável
 o `withLock` já mostra o padrão de degradar quando o Redis cai. Não adicionar
 dependência: um `INCR` com `EXPIRE` resolve.
 
-### 10. Reservas vencidas ficam `PENDING` para sempre em assento sem disputa
+### ✅ 10. Reservas vencidas ficam `PENDING` para sempre em assento sem disputa
 
 **Onde:** `src/modules/reservations/reservations.service.ts` — a expiração é
 preguiçosa e só roda quando alguém tenta reservar aquele assento.
@@ -191,7 +197,7 @@ com o índice `[status, expiresAt]` que já existe) ou um script `npm run
 reservations:expire` documentado. Manter a expiração preguiçosa como está: ela é
 o que garante correção; a varredura é higiene.
 
-### 11. `RefreshToken` vencido nunca é apagado
+### ✅ 11. `RefreshToken` vencido nunca é apagado
 
 **Onde:** nenhum código apaga; o índice `[expiresAt]` existe e não é usado.
 
@@ -205,7 +211,7 @@ mais de N dias.
 
 ## P3 — Polimento
 
-### 12. Log não redige tokens
+### ✅ 12. Log não redige tokens
 
 **Onde:** `src/shared/lib/logger.ts` — `redact` cobre `authorization`, `cookie`,
 `password` e `passwordHash`, mas não `refreshToken`, `accessToken`, `qrContent`
@@ -214,7 +220,7 @@ nem `code` de ingresso.
 **O que fazer:** acrescentar esses caminhos. Custo baixo, e evita que um log de
 corpo de requisição vaze uma sessão inteira.
 
-### 13. Chave de cache do catálogo não distingue os provedores ativos
+### ✅ 13. Chave de cache do catálogo não distingue os provedores ativos
 
 **Onde:** `src/modules/catalog/catalog.service.ts` — a chave é
 `catalog:search:{termo}:{página}`.
@@ -222,7 +228,7 @@ corpo de requisição vaze uma sessão inteira.
 **O que fazer:** incluir os nomes dos provedores ativos na chave. Hoje, ligar a
 chave do Ticketmaster serve resultado cacheado só do TMDb por até 10 minutos.
 
-### 14. `Payment` guarda só a última tentativa
+### ➖ 14. `Payment` guarda só a última tentativa
 
 **Onde:** `prisma/schema.prisma` — `Payment.reservationId` é `@unique`, e o
 repositório faz `upsert`.
@@ -231,7 +237,7 @@ repositório faz `upsert`.
 sobrar tempo, virar histórico exige migration e não muda nada que o desafio
 avalie. Fica aqui apenas para não parecer esquecimento.
 
-### 15. Cancelamento de reserva confirmada não existe
+### ➖ 15. Cancelamento de reserva confirmada não existe
 
 **Onde:** `reservations.service.ts` — `cancel` recusa reserva `CONFIRMED`.
 
@@ -259,13 +265,30 @@ Vale registrar, porque foi verificado e está correto:
 
 ---
 
-## Ordem sugerida de execução
+## Execução
 
-1. **Item 1 e 2** primeiro, hoje: sem eles o frontend não começa.
-2. **Itens 3, 4, 5 e 6** em seguida: são as falhas que um avaliador atento
-   encontra lendo o código.
-3. **Itens 7 a 11** se o prazo permitir, na ordem listada.
-4. **P3** só se sobrar tempo depois do frontend.
+Feita em três commits, na ordem de prioridade:
 
-Cada item vira um commit `fix:` ou `feat:` próprio, com o teste que prova a
-correção — os itens 3, 4, 5 e 6 têm teste faltando explicitamente indicado.
+| Commit | Itens | Testes acrescentados |
+| --- | --- | --- |
+| `feat(events): servir o mapa de assentos e liberar CORS` | 1, 2 | mapa com assento ocupado; preflight sem autenticação; origem desconhecida recusada |
+| `fix: corrigir as quatro falhas de comportamento da revisão` | 3, 4, 5, 6 | pagar evento cancelado; logout alheio; capacidade e mapa em sincronia; chave repetida com corpo diferente |
+| `fix: uniformizar a portaria, a paginação e a higiene do banco` | 7 a 13 | consulta apontando evento errado e cancelado; limite de tentativas; varredura de vencidos |
+
+Verificado também contra o servidor real, não só na suíte:
+
+```
+mapa de assentos:        30 assentos, 27 livres, primeiro A1 com id
+CORS preflight:          204 com Access-Control-Allow-Origin
+mesma chave, outro corpo: CONFLICT — já usada com um corpo diferente
+12 logins errados:       429
+```
+
+### Uma decisão tomada durante a correção
+
+O limitador de tentativas derrubou os testes de cadastro, que registram várias
+contas do mesmo IP em sequência. Em vez de afrouxar o limite até o teste passar
+— o que esvaziaria a proteção —, os limitadores passaram a ser **injetáveis**: o
+teste de regra de autenticação usa passa-adiante, e o comportamento do limitador
+tem teste próprio. Afrouxar o limite teria escondido o conflito; separar as
+responsabilidades resolveu.

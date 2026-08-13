@@ -89,6 +89,7 @@ Com a aplicação no ar:
 | `POST /events` · `PATCH /events/:id` | Criação e edição pelo organizador dono |
 | `POST /events/:id/publish` · `/cancel` | Transições de estado do evento |
 | `GET /events` · `GET /events/:id` | Listagem e detalhe públicos |
+| `GET /events/:id/seats` | Mapa de assentos, com o `id` que a reserva exige |
 
 O `/health` distingue os dois serviços porque eles não têm o mesmo peso: sem
 Postgres não há serviço e a resposta é `error` com HTTP 503; sem Redis o sistema
@@ -166,6 +167,13 @@ gratuita durante uma avaliação.
 Uma vez criado, o evento guarda os dados já normalizados: servi-lo **nunca**
 chama a API externa de novo.
 
+### Frontend em outra origem
+
+A API responde CORS para as origens listadas em `CORS_ORIGINS` (padrão:
+`http://localhost:5173` e `http://localhost:3001`). Não responde curinga, porque
+as chamadas levam `Authorization`. O cabeçalho `Idempotency-Replayed` é exposto
+explicitamente — sem isso o navegador o esconderia do JavaScript.
+
 ### Fluxo completo em cinco chamadas
 
 Depois do seed, dá para percorrer o sistema inteiro sem frontend. O evento e o
@@ -185,7 +193,7 @@ EVENT=$(curl -s "$BASE/events" | jq -r '.items[0].id')
 curl -s "$BASE/events/$EVENT" | jq '{title, availableSeatsCount}'
 
 # 3. Reserva — com Idempotency-Key, porque duplo clique acontece
-SEAT=<id de um assento livre>
+SEAT=$(curl -s "$BASE/events/$EVENT/seats" | jq -r '.items[] | select(.available) | .id' | head -1)
 RES=$(curl -s -X POST $BASE/events/$EVENT/reservations \
   -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -H "idempotency-key: $(uuidgen)" -d "{\"seatId\":\"$SEAT\"}" | jq -r .id)
