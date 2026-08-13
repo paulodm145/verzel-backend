@@ -36,7 +36,7 @@ export interface AuthService {
   register(input: RegisterInput): Promise<AuthenticatedUser>;
   login(input: LoginInput): Promise<AuthenticatedUser>;
   refresh(refreshToken: string): Promise<SessionOutput>;
-  logout(refreshToken: string): Promise<void>;
+  logout(userId: string, refreshToken: string): Promise<void>;
   profile(userId: string): Promise<UserOutput>;
 }
 
@@ -162,15 +162,19 @@ export function createAuthService(repository: AuthRepository): AuthService {
      * Encerra apenas a sessão apresentada — sair no celular não desloga o
      * navegador.
      *
-     * Token desconhecido termina em silêncio: reclamar confirmaria a quem
-     * tenta adivinhar que aquele token não existe.
+     * Só revoga token do próprio usuário: sem essa checagem, quem conhecesse o
+     * token de outra pessoa derrubaria a sessão dela por uma rota autenticada.
+     * A verificação de dono existe em toda operação equivalente do sistema.
+     *
+     * Token desconhecido, ou de outro dono, termina em silêncio: reclamar
+     * confirmaria a quem tenta adivinhar que aquele token existe.
      */
-    async logout(refreshToken) {
+    async logout(userId, refreshToken) {
       const stored = await repository.findRefreshTokenByHash(
         hashRefreshToken(refreshToken),
       );
 
-      if (stored && !stored.revokedAt) {
+      if (stored?.userId === userId && !stored.revokedAt) {
         await repository.revokeRefreshToken(stored.id);
       }
     },

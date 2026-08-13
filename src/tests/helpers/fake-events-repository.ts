@@ -53,6 +53,13 @@ export function createFakeEventsRepository(): FakeEventsRepository {
       return Promise.resolve(updated);
     },
 
+    async updateWithSeats(id, changes, capacity) {
+      const updated = await this.update(id, changes);
+      seatCounts.set(id, capacity);
+
+      return updated;
+    },
+
     replaceSeats(eventId, capacity) {
       seatCounts.set(eventId, capacity);
 

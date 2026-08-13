@@ -177,6 +177,24 @@ describe("ciclo de vida do evento", () => {
     expect(response.status).toBe(409);
   });
 
+  it("mantém capacidade e mapa em sincronia ao editar rascunho", async () => {
+    const criado = await criarEvento();
+
+    const atualizado = await request(app)
+      .patch(`/events/${idOf(criado)}`)
+      .set("authorization", await tokenDe(organizador, "ORGANIZER"))
+      .send({ capacity: 25 });
+
+    expect(atualizado.body.capacity).toBe(25);
+
+    await request(app)
+      .post(`/events/${idOf(criado)}/publish`)
+      .set("authorization", await tokenDe(organizador, "ORGANIZER"));
+    const mapa = await request(app).get(`/events/${idOf(criado)}/seats`);
+
+    expect(mapa.body.total).toBe(25);
+  });
+
   it("recusa publicar evento cancelado", async () => {
     const criado = await criarEvento();
     await request(app)

@@ -212,6 +212,19 @@ describe("POST /events/:id/reservations", () => {
     await expect(prisma.reservation.count()).resolves.toBe(1);
   });
 
+  it("recusa a mesma chave com corpo diferente, em vez de devolver a resposta errada", async () => {
+    const chave = `chave-${String(Date.now())}`;
+
+    const primeira = await reservar(seats[0] ?? "", cliente, chave);
+    // Mesma chave, outro assento: reproduzir a primeira resposta faria o
+    // cliente acreditar que reservou o A2 quando reservou o A1
+    const segunda = await reservar(seats[1] ?? "", cliente, chave);
+
+    expect(primeira.status).toBe(201);
+    expect(segunda.status).toBe(409);
+    expect(segunda.body.error.message).toContain("corpo diferente");
+  });
+
   it("sem Idempotency-Key, a segunda tentativa no mesmo assento dá 409", async () => {
     await reservar(seats[0] ?? "");
 
@@ -329,6 +342,21 @@ describe("POST /reservations/:id/payment", () => {
     const response = await pagar(criada.body.id as string);
 
     expect(response.status).toBe(409);
+  });
+
+  it("recusa pagar reserva de evento cancelado, sem emitir ingresso", async () => {
+    const criada = await reservar(seats[0] ?? "");
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { status: "CANCELED" },
+    });
+
+    const response = await pagar(criada.body.id as string);
+
+    // Cobrar e depois barrar na portaria seria o pior desfecho deste fluxo
+    expect(response.status).toBe(409);
+    await expect(prisma.ticket.count()).resolves.toBe(0);
+    await expect(prisma.payment.count()).resolves.toBe(0);
   });
 
   it("recusa pagar reserva de outro cliente", async () => {

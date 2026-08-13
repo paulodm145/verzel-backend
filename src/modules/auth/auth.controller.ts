@@ -41,7 +41,7 @@ export function createAuthController(service: AuthService): AuthController {
     async logout(request: Request, response: Response) {
       const { body } = validated(request, { body: refreshSchema });
 
-      await service.logout(body.refreshToken);
+      await service.logout(getAuth(request).userId, body.refreshToken);
       response.status(204).send();
     },
 

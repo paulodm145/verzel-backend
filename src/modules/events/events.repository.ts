@@ -61,6 +61,16 @@ export interface EventsRepository {
   update(id: string, changes: EventChanges): Promise<EventRecord>;
   /** Troca o mapa inteiro; só faz sentido em rascunho (RN-8). */
   replaceSeats(eventId: string, capacity: number): Promise<void>;
+  /**
+   * Altera o evento e regenera o mapa **na mesma transação**. Em duas escritas
+   * separadas, uma falha no meio deixaria a capacidade divergindo do número de
+   * assentos, e o evento anunciaria lugares que não existem.
+   */
+  updateWithSeats(
+    id: string,
+    changes: EventChanges,
+    capacity: number,
+  ): Promise<EventRecord>;
   list(filter: ListFilter): Promise<EventPage>;
   countAvailableSeats(eventId: string): Promise<number>;
   listSeats(eventId: string): Promise<readonly SeatAvailability[]>;
@@ -137,6 +147,16 @@ export function createEventsRepository(
         prisma.seat.deleteMany({ where: { eventId } }),
         prisma.seat.createMany({ data: seatRows(eventId, capacity) }),
       ]);
+    },
+
+    async updateWithSeats(id, changes, capacity) {
+      const [updated] = await prisma.$transaction([
+        prisma.event.update({ where: { id }, data: changes }),
+        prisma.seat.deleteMany({ where: { eventId: id } }),
+        prisma.seat.createMany({ data: seatRows(id, capacity) }),
+      ]);
+
+      return updated;
     },
 
     async list(filter) {

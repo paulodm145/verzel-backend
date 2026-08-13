@@ -122,7 +122,7 @@ export function createEventsService(
         throw new ConflictError("Evento cancelado não pode ser editado");
       }
 
-      const updated = await repository.update(eventId, {
+      const changes_ = {
         ...(changes.title !== undefined ? { title: changes.title } : {}),
         ...(changes.description !== undefined
           ? { description: changes.description ?? null }
@@ -136,11 +136,14 @@ export function createEventsService(
           ? { capacity: changes.capacity }
           : {}),
         ...(changes.price !== undefined ? { price: changes.price } : {}),
-      });
+      };
 
-      if (capacityChanged && changes.capacity !== undefined) {
-        await repository.replaceSeats(eventId, changes.capacity);
-      }
+      // Capacidade nova e mapa novo vão juntos: separados, uma falha entre as
+      // duas escritas deixaria o evento anunciando lugares inexistentes
+      const updated =
+        capacityChanged && changes.capacity !== undefined
+          ? await repository.updateWithSeats(eventId, changes_, changes.capacity)
+          : await repository.update(eventId, changes_);
 
       return toOutput(updated);
     },

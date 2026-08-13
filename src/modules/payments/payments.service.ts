@@ -54,6 +54,17 @@ export function createPaymentsService(
         throw new ConflictError("O prazo desta reserva venceu");
       }
 
+      // Sem esta checagem, o cliente pagaria por evento cancelado, receberia o
+      // ingresso e seria barrado na portaria. Cobrar e depois negar a entrada é
+      // o pior desfecho possível deste fluxo.
+      const event = await reservations.findEventState(reservation.eventId);
+
+      if (event?.status !== "PUBLISHED") {
+        throw new ConflictError(
+          "Este evento não está mais disponível para pagamento",
+        );
+      }
+
       const approved = input.simulate === "APPROVED";
       const payment = await payments.record(
         reservationId,
