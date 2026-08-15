@@ -128,7 +128,9 @@ com sal por usuário e os parâmetros de custo dentro do próprio hash
 ### Credenciais de teste
 
 Criadas por `npm run db:seed`. São públicas de propósito — servem para avaliar o
-projeto, e o seed nunca roda contra produção.
+projeto. O seed **recusa rodar com `NODE_ENV=production`**: ele apaga o catálogo
+inteiro e cria contas de senha conhecida, e as duas coisas seriam desastrosas num
+banco real. `npm run db:seats` tem a mesma guarda.
 
 | Papel | E-mail | Senha |
 | --- | --- | --- |

@@ -171,6 +171,18 @@ describe("seed de usuários", () => {
     await expect(prisma.reservation.count()).resolves.toBe(1);
   });
 
+  it("não apaga a base quando o catálogo vem incompleto", async () => {
+    const antes = await prisma.event.count();
+
+    // TMDb fora do ar, ou chave sem cota: o seed precisa abortar antes da
+    // limpeza, e não deixar a base vazia.
+    await expect(
+      seedDatabase(prisma, catalogItems.slice(0, 3)),
+    ).rejects.toThrow(/filmes com pôster/u);
+
+    await expect(prisma.event.count()).resolves.toBe(antes);
+  });
+
   it("autentica com cada credencial documentada no README", async () => {
     const service = createAuthService(createAuthRepository(prisma));
 

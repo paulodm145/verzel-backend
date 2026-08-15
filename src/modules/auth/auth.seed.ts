@@ -120,6 +120,17 @@ export async function seedDatabase(
   prisma: PrismaClient,
   catalogItems: readonly CatalogItem[],
 ): Promise<void> {
+  if (getEnv().NODE_ENV === "production") {
+    throw new Error(
+      "O seed apaga o catálogo inteiro e cria usuários de senha pública: " +
+        "não roda em produção.",
+    );
+  }
+
+  // Antes de apagar qualquer coisa: catálogo insuficiente aqui aborta com a
+  // base intacta, em vez de deixá-la vazia porque o TMDb estava fora do ar.
+  const movies = selectUsableItems(catalogItems);
+
   await clearCatalog(prisma);
 
   for (const user of seedUsers) {
@@ -136,7 +147,29 @@ export async function seedDatabase(
   }
 
   await seedShowcase(prisma);
-  await seedMovieSessions(prisma, catalogItems);
+  await seedMovieSessions(prisma, movies);
+}
+
+/**
+ * Escolhe os 99 filmes que virarão sessão. Sem pôster o card nasce vazio no
+ * frontend, então filme sem imagem não entra no catálogo de demonstração.
+ */
+function selectUsableItems(
+  catalogItems: readonly CatalogItem[],
+): (CatalogItem & { imageUrl: string })[] {
+  const usable = catalogItems
+    .filter((item): item is CatalogItem & { imageUrl: string } =>
+      Boolean(item.imageUrl),
+    )
+    .slice(0, SEED_EVENT_COUNT - 1);
+
+  if (usable.length < SEED_EVENT_COUNT - 1) {
+    throw new Error(
+      `O TMDb retornou apenas ${String(usable.length)} filmes com pôster; são necessários ${String(SEED_EVENT_COUNT - 1)}.`,
+    );
+  }
+
+  return usable;
 }
 
 /**
@@ -176,24 +209,11 @@ function sessionDateFor(index: number): Date {
  */
 async function seedMovieSessions(
   prisma: PrismaClient,
-  catalogItems: readonly CatalogItem[],
+  usableItems: readonly (CatalogItem & { imageUrl: string })[],
 ): Promise<void> {
   const organizer = await prisma.user.findUniqueOrThrow({
     where: { email: "organizador@verzel.test" },
   });
-  // Sem pôster o card do evento nasce vazio no frontend, então filme sem imagem
-  // não entra no catálogo de demonstração.
-  const usableItems = catalogItems
-    .filter((item): item is CatalogItem & { imageUrl: string } =>
-      Boolean(item.imageUrl),
-    )
-    .slice(0, SEED_EVENT_COUNT - 1);
-
-  if (usableItems.length < SEED_EVENT_COUNT - 1) {
-    throw new Error(
-      `O TMDb retornou apenas ${String(usableItems.length)} filmes com pôster; são necessários ${String(SEED_EVENT_COUNT - 1)}.`,
-    );
-  }
 
   for (const [index, item] of usableItems.entries()) {
     const capacity = 20 + (index % 5) * 10;
