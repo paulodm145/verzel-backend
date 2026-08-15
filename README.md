@@ -67,7 +67,7 @@ cp .env.example .env    # preencha os valores: DB_PASSWORD e JWT_SECRET
 docker compose up -d    # sobe Postgres 16 e Redis 7
 npm ci                  # instala e roda `prisma generate` no postinstall
 npm run db:migrate      # aplica as migrations no banco de desenvolvimento
-npm run db:seed         # cria os usuários de teste
+npm run db:seed         # usuários de teste e 100 sessões de filme (exige TMDB_API_KEY)
 npm run dev             # http://localhost:3000
 ```
 
@@ -128,7 +128,9 @@ com sal por usuário e os parâmetros de custo dentro do próprio hash
 ### Credenciais de teste
 
 Criadas por `npm run db:seed`. São públicas de propósito — servem para avaliar o
-projeto, e o seed nunca roda contra produção.
+projeto. O seed **recusa rodar com `NODE_ENV=production`**: ele apaga o catálogo
+inteiro e cria contas de senha conhecida, e as duas coisas seriam desastrosas num
+banco real. `npm run db:seats` tem a mesma guarda.
 
 | Papel | E-mail | Senha |
 | --- | --- | --- |
@@ -144,8 +146,8 @@ curl -s -X POST http://localhost:3000/auth/login \
 ```
 
 O `/docs` traz esses mesmos exemplos prontos em `POST /auth/login`, para entrar
-em cada papel sem sair do navegador. O seed é idempotente: rodar de novo não
-duplica conta nem reescreve senha.
+em cada papel sem sair do navegador. Rodar o seed de novo não duplica conta nem
+reescreve senha — só o catálogo de demonstração é recriado.
 
 ### Catálogo externo
 
@@ -245,13 +247,42 @@ curl -s -X POST $BASE/gate/validate -H "authorization: Bearer $GATE" \
 | Item | Detalhe |
 | --- | --- |
 | 4 usuários | Um organizador, dois clientes, uma portaria |
-| 1 evento publicado | 30 assentos, com um já vendido |
+| 100 eventos publicados | 99 sessões de filmes do TMDb e um cenário completo |
 | 1 ingresso `VALID` | Assento A1, pronto para validar na portaria |
 
-O código do ingresso é impresso na saída do seed. O seed é idempotente e não
-depende de rede: o evento nasce de dados fixos, e não de uma chamada ao catálogo
-externo — seed que depende de internet falha justamente na máquina de quem está
-avaliando.
+O código do ingresso é impresso na saída do seed. Para popular as 99 sessões,
+`TMDB_API_KEY` precisa estar configurada e a API externa acessível durante a
+execução — os filmes vêm pelo mesmo adapter que serve `GET /catalog/search`.
+
+Cada filme entra como uma sessão nos próximos 60 dias, e não na sua data de
+lançamento: evento no passado não aparece para o cliente nem aceita reserva.
+
+O seed **recria o catálogo do zero** a cada execução — apaga eventos, assentos,
+reservas, pagamentos e ingressos antes de semear, para que o resultado não
+dependa do que havia antes. Os usuários são a exceção: vão por `upsert` de
+e-mail, sem reescrever senha, então quem estiver logado continua logado.
+
+### Ocupando o mapa de assentos
+
+O seed deixa os 99 eventos com o mapa inteiro livre, o que não é o que uma tela
+de seleção de assento precisa mostrar. Para ocupar parte dele:
+
+```bash
+npm run db:seats                          # 40% dos assentos de todo evento publicado
+npm run db:seats -- --rate=0.8            # lotação mais alta
+npm run db:seats -- --event=<uuid>        # um evento só
+```
+
+Quatro em cada cinco reservas ficam `CONFIRMED`, com pagamento aprovado e
+ingresso emitido; a quinta fica `PENDING`, para o mapa exibir também o lugar em
+processo de compra. O script **passa pelos services de reserva e pagamento**, e
+não escreve nas tabelas direto: o dado de demonstração sai idêntico ao que a API
+produziria, incluindo lock, constraint e QR assinado.
+
+A escolha dos assentos é sorteada, mas determinística — a semente é a chave
+natural do evento (`externalId` + data), então recriar a base e rodar de novo
+devolve o mesmo mapa. Rodar duas vezes com a mesma taxa não ocupa nada a mais;
+subir a taxa só acrescenta a diferença.
 
 ### Variáveis de ambiente
 
@@ -299,7 +330,8 @@ Sem os containers no ar os testes **falham** em vez de passar silenciosamente.
 | `npm run db:migrate` | Cria e aplica migration em desenvolvimento |
 | `npm run db:deploy` | Aplica migrations já existentes (produção/CI) |
 | `npm run db:reset` | Recria o banco do zero e reaplica tudo |
-| `npm run db:seed` | Cria os usuários de teste dos três papéis |
+| `npm run db:seed` | Recria o catálogo de demonstração e os usuários de teste |
+| `npm run db:seats` | Ocupa parte dos assentos, para o mapa não ficar vazio |
 | `npm run db:generate` | Regenera o Prisma Client em `src/generated/` |
 
 ### Resetar o ambiente do zero

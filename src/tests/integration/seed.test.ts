@@ -2,8 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../../generated/prisma/client.js";
 import { createAuthRepository } from "../../modules/auth/auth.repository.js";
-import { seedDatabase, seedUsers } from "../../modules/auth/auth.seed.js";
+import {
+  SEED_EVENT_COUNT,
+  seedDatabase,
+  seedUsers,
+} from "../../modules/auth/auth.seed.js";
 import { createAuthService } from "../../modules/auth/auth.service.js";
+import type { CatalogItem } from "../../modules/catalog/catalog.types.js";
 import { createGateRepository } from "../../modules/gate/gate.repository.js";
 import { createGateService } from "../../modules/gate/gate.service.js";
 import {
@@ -12,13 +17,31 @@ import {
 } from "../../modules/tickets/qrcode.service.js";
 import { createTestPrismaClient, truncateAll } from "../helpers/database.js";
 
+/**
+ * Filmes como o TMDb devolve: `date` é a data de lançamento, no passado. O seed
+ * não pode reaproveitá-la como data do evento — ninguém reserva uma sessão que
+ * já aconteceu.
+ */
+const catalogItems: CatalogItem[] = Array.from(
+  { length: SEED_EVENT_COUNT - 1 },
+  (_unused, index) => ({
+    externalId: `tmdb-${String(index + 1)}`,
+    title: `Filme do TMDb ${String(index + 1)}`,
+    sourceType: "MOVIE",
+    date: new Date(Date.UTC(1999, index % 12, (index % 27) + 1)).toISOString(),
+    imageUrl: `https://image.tmdb.org/t/p/w500/poster-${String(index + 1)}.jpg`,
+    description: `Sinopse ${String(index + 1)}`,
+    provider: "tmdb",
+  }),
+);
+
 describe("seed de usuários", () => {
   let prisma: PrismaClient;
 
   beforeAll(async () => {
     prisma = createTestPrismaClient();
     await truncateAll(prisma);
-    await seedDatabase(prisma);
+    await seedDatabase(prisma, catalogItems);
   });
 
   afterAll(async () => {
@@ -48,18 +71,60 @@ describe("seed de usuários", () => {
   });
 
   it("não duplica quando roda de novo", async () => {
-    await seedDatabase(prisma);
+    await seedDatabase(prisma, catalogItems);
 
     await expect(prisma.user.count()).resolves.toBe(seedUsers.length);
   });
 
-  it("cria um evento publicado com assentos livres", async () => {
-    const event = await prisma.event.findFirstOrThrow();
+  it("cria 100 sessões de filme publicadas com assentos", async () => {
+    const events = await prisma.event.findMany({
+      include: { _count: { select: { seats: true } } },
+    });
 
-    expect(event.status).toBe("PUBLISHED");
+    expect(events).toHaveLength(SEED_EVENT_COUNT);
+    for (const event of events) {
+      expect(event.status).toBe("PUBLISHED");
+      expect(event.sourceType).toBe("MOVIE");
+      expect(event._count.seats).toBe(event.capacity);
+      expect(event.imageUrl).toMatch(/^https:\/\//);
+    }
+    expect(new Set(events.map((event) => event.imageUrl)).size).toBe(
+      SEED_EVENT_COUNT,
+    );
+  });
 
-    const assentos = await prisma.seat.count({ where: { eventId: event.id } });
-    expect(assentos).toBe(event.capacity);
+  it("agenda todas as sessões no futuro, e não na data de lançamento", async () => {
+    const events = await prisma.event.findMany({ select: { date: true } });
+
+    for (const event of events) {
+      expect(event.date.getTime()).toBeGreaterThan(Date.now());
+    }
+  });
+
+  it("apaga o que sobrou da execução anterior do seed", async () => {
+    const organizer = await prisma.user.findFirstOrThrow({
+      where: { role: "ORGANIZER" },
+    });
+    const sobra = await prisma.event.create({
+      data: {
+        organizerId: organizer.id,
+        sourceType: "SHOW",
+        externalId: "seed-antigo",
+        title: "Evento de uma execução anterior",
+        date: new Date(Date.UTC(2028, 0, 1)),
+        venue: "Arena Verzel",
+        capacity: 10,
+        price: 10,
+        status: "PUBLISHED",
+      },
+    });
+
+    await seedDatabase(prisma, catalogItems);
+
+    await expect(
+      prisma.event.findUnique({ where: { id: sobra.id } }),
+    ).resolves.toBeNull();
+    await expect(prisma.event.count()).resolves.toBe(SEED_EVENT_COUNT);
   });
 
   it("deixa um ingresso pronto para a portaria validar", async () => {
@@ -99,11 +164,23 @@ describe("seed de usuários", () => {
   });
 
   it("não duplica o evento nem o ingresso ao rodar de novo", async () => {
-    await seedDatabase(prisma);
+    await seedDatabase(prisma, catalogItems);
 
-    await expect(prisma.event.count()).resolves.toBe(1);
+    await expect(prisma.event.count()).resolves.toBe(SEED_EVENT_COUNT);
     await expect(prisma.ticket.count()).resolves.toBe(1);
     await expect(prisma.reservation.count()).resolves.toBe(1);
+  });
+
+  it("não apaga a base quando o catálogo vem incompleto", async () => {
+    const antes = await prisma.event.count();
+
+    // TMDb fora do ar, ou chave sem cota: o seed precisa abortar antes da
+    // limpeza, e não deixar a base vazia.
+    await expect(
+      seedDatabase(prisma, catalogItems.slice(0, 3)),
+    ).rejects.toThrow(/filmes com pôster/u);
+
+    await expect(prisma.event.count()).resolves.toBe(antes);
   });
 
   it("autentica com cada credencial documentada no README", async () => {
