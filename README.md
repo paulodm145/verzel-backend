@@ -260,6 +260,28 @@ reservas, pagamentos e ingressos antes de semear, para que o resultado não
 dependa do que havia antes. Os usuários são a exceção: vão por `upsert` de
 e-mail, sem reescrever senha, então quem estiver logado continua logado.
 
+### Ocupando o mapa de assentos
+
+O seed deixa os 99 eventos com o mapa inteiro livre, o que não é o que uma tela
+de seleção de assento precisa mostrar. Para ocupar parte dele:
+
+```bash
+npm run db:seats                          # 40% dos assentos de todo evento publicado
+npm run db:seats -- --rate=0.8            # lotação mais alta
+npm run db:seats -- --event=<uuid>        # um evento só
+```
+
+Quatro em cada cinco reservas ficam `CONFIRMED`, com pagamento aprovado e
+ingresso emitido; a quinta fica `PENDING`, para o mapa exibir também o lugar em
+processo de compra. O script **passa pelos services de reserva e pagamento**, e
+não escreve nas tabelas direto: o dado de demonstração sai idêntico ao que a API
+produziria, incluindo lock, constraint e QR assinado.
+
+A escolha dos assentos é sorteada, mas determinística — a semente é a chave
+natural do evento (`externalId` + data), então recriar a base e rodar de novo
+devolve o mesmo mapa. Rodar duas vezes com a mesma taxa não ocupa nada a mais;
+subir a taxa só acrescenta a diferença.
+
 ### Variáveis de ambiente
 
 O [`.env.example`](.env.example) lista todas, comentadas. A aplicação valida o
@@ -307,6 +329,7 @@ Sem os containers no ar os testes **falham** em vez de passar silenciosamente.
 | `npm run db:deploy` | Aplica migrations já existentes (produção/CI) |
 | `npm run db:reset` | Recria o banco do zero e reaplica tudo |
 | `npm run db:seed` | Recria o catálogo de demonstração e os usuários de teste |
+| `npm run db:seats` | Ocupa parte dos assentos, para o mapa não ficar vazio |
 | `npm run db:generate` | Regenera o Prisma Client em `src/generated/` |
 
 ### Resetar o ambiente do zero
