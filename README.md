@@ -19,6 +19,9 @@ e **QR Code não falsificável** ([ADR 0004](docs/adr/0004-qrcode-com-assinatura
 > reserva protegida contra venda dupla, pagamento simulado, ingresso com QR
 > assinado e validação na portaria.
 
+📌 **[Uso de IA neste projeto](#uso-de-ia-neste-projeto)** — o que foi escrito
+com IA, o que foi decidido manualmente e o que o processo de revisão pegou.
+
 ## Como o projeto é construído
 
 O desenvolvimento é **spec-driven**: cada épico do backlog começa por uma
@@ -42,7 +45,7 @@ ferramenta — o projeto não precisa de mais um toolchain para escrever documen
 | [`docs/templates/`](docs/templates/) | Modelos de spec, plan, tasks e ADR |
 
 Quem quiser entender as escolhas técnicas antes do código deve começar pelos
-[ADRs](docs/adr/): são cinco, curtos, e cobrem os pontos que o desafio pede para
+[ADRs](docs/adr/): são dez, curtos, e cobrem os pontos que o desafio pede para
 justificar.
 
 ## Progresso
@@ -402,7 +405,10 @@ Os testes que mais importam:
 ## Uso de IA neste projeto
 
 O projeto foi desenvolvido com **Claude Code** (Opus 5) em pareamento, e não como
-gerador de código solto. O que isso significou na prática:
+gerador de código solto. O histórico deixa a divisão auditável: dos 94 commits,
+79 trazem o trailer `Co-Authored-By: Claude`, distribuídos em 15 pull requests
+— um por épico, sempre com merge `--no-ff`, porque um squash apagaria justamente
+a evidência do processo.
 
 **O que a IA fez.** Escreveu a maior parte do código e dos testes, redigiu as
 especificações, os planos e os ADRs a partir das decisões tomadas em conversa, e
@@ -410,11 +416,11 @@ executou a verificação — rodar a suíte, subir o servidor, derrubar o Redis,
 conferir o comportamento real antes de afirmar que algo funcionava.
 
 **O que foi decidido por mim.** A stack e as convenções (arquivo
-[`CLAUDE.md`](CLAUDE.md), escrito antes de existir código), o fluxo
-spec-driven, e cada uma das decisões de arquitetura: mapa de assentos em vez de
-contador, constraint como garantia final, Adapter para o catálogo, scrypt em vez
-de bcrypt, refresh token opaco com rotação. A IA apresentou alternativas com
-trade-offs; a escolha e o registro em ADR foram meus.
+[`CLAUDE.md`](CLAUDE.md), escrito antes de existir código), o fluxo spec-driven,
+e cada uma das decisões de arquitetura registradas nos [ADRs](docs/adr/): mapa de
+assentos em vez de contador, constraint como garantia final, Adapter para o
+catálogo, scrypt em vez de bcrypt, refresh token opaco com rotação. A IA
+apresentou alternativas com trade-offs; a escolha e o registro em ADR foram meus.
 
 **O que o processo pegou.** Cada épico virou um PR revisado antes do merge. A
 revisão automatizada do Épico 1 encontrou nove problemas reais — o mais grave
@@ -427,9 +433,11 @@ Também no desenvolvimento, dois testes foram reescritos por passarem **pelo
 motivo errado**: um deles trocava uma variável de ambiente que já estava
 memorizada, e portanto não testava a degradação que dizia testar.
 
-A lição que fica: IA acelera muito a escrita, e não substitui a verificação. Um
-teste verde é uma afirmação sobre o que ele exercita — não sobre o que o sistema
-faz.
+**A lição que fica.** IA acelera muito a escrita, e não substitui a verificação.
+Um teste verde é uma afirmação sobre o que ele exercita — não sobre o que o
+sistema faz. Por isso as afirmações deste README são checáveis: cada garantia
+crítica tem, na seção de testes, o arquivo que a sustenta — e cada decisão tem o
+ADR que a justifica.
 
 ## Licença
 
